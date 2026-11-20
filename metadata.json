@@ -1,0 +1,8 @@
+{
+  "name": "chevilly resort and camp",
+  "description": "Hotel dan Wisata dalam satu area, healing murah dalam kawasan luas 14 hektar",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
