@@ -1,34 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { RESORT_INFO } from '../data/resortData';
+import { ResortInfoData } from '../services/api';
 import { Phone, Mail, MapPin, Compass, ShieldCheck, ExternalLink, Navigation, Car } from 'lucide-react';
 
 interface FooterProps {
   onOpenAdmin?: () => void;
+  resortInfo?: ResortInfoData | null;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
-  const [resortInfo, setResortInfo] = useState(() => {
-    try {
-      const saved = localStorage.getItem('chevilly_resort_info');
-      if (saved) return { ...RESORT_INFO, ...JSON.parse(saved) };
-    } catch {}
-    return RESORT_INFO;
-  });
-
-  useEffect(() => {
-    const handleSync = () => {
-      try {
-        const saved = localStorage.getItem('chevilly_resort_info');
-        if (saved) setResortInfo({ ...RESORT_INFO, ...JSON.parse(saved) });
-      } catch {}
-    };
-    window.addEventListener('storage', handleSync);
-    window.addEventListener('chevilly-resort-updated', handleSync);
-    return () => {
-      window.removeEventListener('storage', handleSync);
-      window.removeEventListener('chevilly-resort-updated', handleSync);
-    };
-  }, []);
+export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, resortInfo: dbResortInfo }) => {
+  const resortInfo = dbResortInfo ? { ...RESORT_INFO, ...dbResortInfo } : RESORT_INFO;
 
   return (
     <footer id="contact" className="bg-[#101b17] text-[#ded8cc] border-t border-[#22352e] pt-14 pb-12 px-6 sm:px-8">
@@ -151,24 +132,17 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
               </a>
             </li>
 
-            {/* Alamat Asli Resmi */}
-            <li className="flex items-start gap-2 pt-1 border-t border-[#233830]/80">
-              <MapPin className="w-3.5 h-3.5 text-[#d4af37] shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <div className="text-white font-medium text-[11.5px]">Alamat Resmi:</div>
-                <div className="leading-relaxed text-[11px] text-[#b6c4be]">
-                  {resortInfo.location}
-                </div>
-                <a
-                  href="https://www.google.com/maps/dir/?api=1&destination=Chevilly+Resort+and+Camp+Bogor"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[10.5px] text-[#d4af37] hover:text-[#fae7b3] underline underline-offset-2 pt-0.5"
-                >
-                  <span>Buka Petunjuk Rute Google Maps</span>
-                  <ExternalLink className="w-2.5 h-2.5" />
-                </a>
-              </div>
+            {/* Tautan Rute Google Maps */}
+            <li className="pt-1 border-t border-[#233830]/80">
+              <a
+                href="https://www.google.com/maps/dir/?api=1&destination=Chevilly+Resort+and+Camp+Bogor"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[10.5px] text-[#d4af37] hover:text-[#fae7b3] underline underline-offset-2 pt-0.5"
+              >
+                <span>Buka Petunjuk Rute Google Maps</span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
             </li>
           </ul>
         </div>

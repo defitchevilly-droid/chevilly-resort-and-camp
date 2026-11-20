@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ROOM_SUITES, ACCOMMODATION_DROPDOWN_ITEMS } from '../data/resortData';
+import { ACCOMMODATION_DROPDOWN_ITEMS } from '../data/resortData';
 import { RoomSuite, Currency, RoomCategoryItem } from '../types';
 import { formatPrice } from '../utils/formatters';
 import { Maximize2, Users, ArrowUpRight, Building2 } from 'lucide-react';
@@ -9,6 +9,7 @@ interface SuitesSectionProps {
   onSelectRoom: (room: RoomSuite) => void;
   onViewRoomDetails: (room: RoomSuite) => void;
   rooms?: RoomSuite[];
+  isLoading?: boolean;
   categories?: RoomCategoryItem[];
   selectedCategory?: string;
   onSelectCategory?: (category: string) => void;
@@ -16,62 +17,29 @@ interface SuitesSectionProps {
 
 type AvailabilityFilter = 'available' | 'all' | 'unavailable';
 
-const getStoredPublishedCategories = (): { id: string; label: string }[] => {
-  try {
-    const saved = localStorage.getItem('chevilly_room_categories');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((c: { id: string; label?: string; name?: string }) => ({
-          id: c.id,
-          label: c.label || c.name || c.id,
-        }));
-      }
-    }
-  } catch {
-    // ignore
-  }
-  return ACCOMMODATION_DROPDOWN_ITEMS.map((item) => ({ id: item.id, label: item.label }));
-};
-
 export const SuitesSection: React.FC<SuitesSectionProps> = ({
   currency,
   onSelectRoom,
   onViewRoomDetails,
-  rooms = ROOM_SUITES,
+  rooms = [],
+  isLoading = false,
   categories: dbCategories,
   selectedCategory = 'all',
   onSelectCategory,
 }) => {
   const [internalFilter, setInternalFilter] = useState<string>(selectedCategory);
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('available');
-  const [publishedCategories, setPublishedCategories] = useState<{ id: string; label: string }[]>(
-    getStoredPublishedCategories
+
+  const publishedCategories = useMemo(
+    () =>
+      Array.isArray(dbCategories) && dbCategories.length > 0
+        ? dbCategories.map((c) => ({
+            id: c.id,
+            label: c.label || c.name || c.id,
+          }))
+        : ACCOMMODATION_DROPDOWN_ITEMS.map((item) => ({ id: item.id, label: item.label })),
+    [dbCategories]
   );
-
-  // Sync with backend categories prop when loaded
-  useEffect(() => {
-    if (Array.isArray(dbCategories) && dbCategories.length > 0) {
-      setPublishedCategories(
-        dbCategories.map((c) => ({
-          id: c.id,
-          label: c.label || c.name || c.id,
-        }))
-      );
-    }
-  }, [dbCategories]);
-
-  useEffect(() => {
-    const syncCategories = () => {
-      setPublishedCategories(getStoredPublishedCategories());
-    };
-    window.addEventListener('storage', syncCategories);
-    window.addEventListener('chevilly-categories-updated', syncCategories);
-    return () => {
-      window.removeEventListener('storage', syncCategories);
-      window.removeEventListener('chevilly-categories-updated', syncCategories);
-    };
-  }, []);
 
   // Sync internal filter when parent passes new selectedCategory
   useEffect(() => {
@@ -148,16 +116,6 @@ export const SuitesSection: React.FC<SuitesSectionProps> = ({
     return [{ id: 'all', label: 'Semua' }, ...baseList, ...extraFromRooms];
   }, [publishedCategories, rooms]);
 
-  // Availability counts from the database rooms list
-  const availableCount = useMemo(
-    () => rooms.filter((r) => r.isAvailable !== false).length,
-    [rooms]
-  );
-  const unavailableCount = useMemo(
-    () => rooms.filter((r) => r.isAvailable === false).length,
-    [rooms]
-  );
-
   // Step 1: Filter rooms by availability status from database
   const roomsByAvailability = useMemo(() => {
     if (availabilityFilter === 'available') {
@@ -219,50 +177,6 @@ export const SuitesSection: React.FC<SuitesSectionProps> = ({
               Villa keluarga privat, BunkBed komunitas, hingga Transit Room harian di alam sejuk Puncak.
             </p>
           </div>
-
-          {/* Filter Ketersediaan (Tersedia / Semua / Tidak Available) */}
-          <div className="flex flex-col sm:items-end gap-2 shrink-0">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-[#73837b]">
-              Filter Ketersediaan
-            </span>
-            <div className="flex flex-wrap items-center gap-1 p-1 bg-[#ece7dc] border border-[#d8d2c4]">
-              <button
-                type="button"
-                onClick={() => setAvailabilityFilter('available')}
-                className={`px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                  availabilityFilter === 'available'
-                    ? 'bg-[#182a24] text-[#f7f5ef] shadow-sm font-semibold'
-                    : 'text-[#4e5e57] hover:text-[#182a24] hover:bg-[#e2dcd0]'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
-                <span>Tersedia ({availableCount})</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setAvailabilityFilter('all')}
-                className={`px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap ${
-                  availabilityFilter === 'all'
-                    ? 'bg-[#182a24] text-[#f7f5ef] shadow-sm font-semibold'
-                    : 'text-[#4e5e57] hover:text-[#182a24] hover:bg-[#e2dcd0]'
-                }`}
-              >
-                Semua Status ({rooms.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setAvailabilityFilter('unavailable')}
-                className={`px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                  availabilityFilter === 'unavailable'
-                    ? 'bg-[#182a24] text-[#f7f5ef] shadow-sm font-semibold'
-                    : 'text-[#4e5e57] hover:text-[#182a24] hover:bg-[#e2dcd0]'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
-                <span>Tidak Available ({unavailableCount})</span>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Filter Kategori dari List Database */}
@@ -299,8 +213,25 @@ export const SuitesSection: React.FC<SuitesSectionProps> = ({
         </div>
       </div>
 
-      {/* Empty State when no rooms match selected category + availability */}
-      {filteredSuites.length === 0 ? (
+      {/* Loading Skeleton while fetching fresh DB rooms */}
+      {isLoading && rooms.length === 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {[0, 1].map((idx) => (
+            <div
+              key={idx}
+              className="bg-[#fcfbf9] border border-[#e2dcd0] overflow-hidden shadow-sm animate-pulse"
+            >
+              <div className="aspect-[16/10] bg-[#e9e4d8]" />
+              <div className="p-6 sm:p-7 space-y-4">
+                <div className="h-3 w-1/3 bg-[#e2dcd0]" />
+                <div className="h-7 w-2/3 bg-[#e2dcd0]" />
+                <div className="h-4 w-full bg-[#ece7dd]" />
+                <div className="h-4 w-4/5 bg-[#ece7dd]" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredSuites.length === 0 ? (
         <div className="bg-[#fcfbf9] border border-[#e2dcd0] p-10 text-center max-w-2xl mx-auto">
           <div className="text-xs font-mono uppercase tracking-widest text-[#967d58] mb-2">
             Informasi Ketersediaan Database
@@ -344,6 +275,10 @@ export const SuitesSection: React.FC<SuitesSectionProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {filteredSuites.map((suite) => {
             const isAvailable = suite.isAvailable !== false;
+            const primaryImage = suite.image || suite.gallery?.[0] || '';
+            const hoverImage = Array.isArray(suite.gallery)
+              ? suite.gallery.find((img) => Boolean(img && img.trim() && img.trim() !== primaryImage.trim()))
+              : undefined;
             return (
               <div
                 key={suite.id}
@@ -354,19 +289,23 @@ export const SuitesSection: React.FC<SuitesSectionProps> = ({
                     : 'border-[#ddd6c8] opacity-90'
                 }`}
               >
-                {/* Image Container with measured aspect ratio and deluxe hover transition */}
+                {/* Image Container with measured aspect ratio and fixed DB image */}
                 <div className="relative aspect-[16/10] overflow-hidden bg-[#e9e4d8]">
-                  <img
-                    src={suite.image}
-                    alt={suite.name}
-                    referrerPolicy="no-referrer"
-                    className={`w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out ${
-                      !isAvailable ? 'grayscale-[35%] opacity-85' : ''
-                    }`}
-                  />
-                  {suite.gallery && suite.gallery.length > 1 && (
+                  {primaryImage && (
                     <img
-                      src={suite.gallery[1] || suite.gallery[0]}
+                      key={primaryImage}
+                      src={primaryImage}
+                      alt={suite.name}
+                      referrerPolicy="no-referrer"
+                      className={`w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out ${
+                        !isAvailable ? 'grayscale-[35%] opacity-85' : ''
+                      }`}
+                    />
+                  )}
+                  {hoverImage && (
+                    <img
+                      key={hoverImage}
+                      src={hoverImage}
                       alt={`${suite.name} Interior`}
                       referrerPolicy="no-referrer"
                       className={`w-full h-full object-cover object-center absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ease-out pointer-events-none ${

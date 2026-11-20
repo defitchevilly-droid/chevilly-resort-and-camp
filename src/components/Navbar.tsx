@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Currency, VisitorUser } from '../types';
+import { Currency, VisitorUser, RoomCategoryItem } from '../types';
 import { Menu, X, BookmarkCheck, User, LogIn, LogOut, ChevronDown } from 'lucide-react';
 import { ACCOMMODATION_DROPDOWN_ITEMS } from '../data/resortData';
 
@@ -14,6 +14,7 @@ interface NavbarProps {
   onLogout?: () => void;
   onOpenAdmin?: () => void;
   onSelectRoomCategory?: (category: string) => void;
+  categories?: RoomCategoryItem[];
 }
 
 const RESTO_CAFE_ITEMS = [
@@ -34,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenLogin,
   onLogout,
   onSelectRoomCategory,
+  categories: dbCategories,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -45,49 +47,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [mobileDiningExpanded, setMobileDiningExpanded] = useState(false);
   const diningDropdownRef = useRef<HTMLDivElement>(null);
 
-  const [categories, setCategories] = useState<{ id: string; label: string }[]>(() => {
-    try {
-      const saved = localStorage.getItem('chevilly_room_categories');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((c: any) => ({
-            id: c.id,
-            label: c.label || c.name || c.id,
-          }));
-        }
-      }
-    } catch {}
-    return ACCOMMODATION_DROPDOWN_ITEMS.map((item) => ({ id: item.id, label: item.label }));
-  });
-
-  const syncCategories = () => {
-    try {
-      const saved = localStorage.getItem('chevilly_room_categories');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setCategories(
-            parsed.map((c: any) => ({
-              id: c.id,
-              label: c.label || c.name || c.id,
-            }))
-          );
-          return;
-        }
-      }
-    } catch {}
-    setCategories(ACCOMMODATION_DROPDOWN_ITEMS.map((item) => ({ id: item.id, label: item.label })));
-  };
-
-  useEffect(() => {
-    window.addEventListener('storage', syncCategories);
-    window.addEventListener('chevilly-categories-updated', syncCategories);
-    return () => {
-      window.removeEventListener('storage', syncCategories);
-      window.removeEventListener('chevilly-categories-updated', syncCategories);
-    };
-  }, []);
+  const categories =
+    Array.isArray(dbCategories) && dbCategories.length > 0
+      ? dbCategories.map((c) => ({
+          id: c.id,
+          label: c.label || c.name || c.id,
+        }))
+      : ACCOMMODATION_DROPDOWN_ITEMS.map((item) => ({ id: item.id, label: item.label }));
 
   useEffect(() => {
     const handleScroll = () => {
@@ -171,18 +137,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div
             ref={dropdownRef}
             className="relative"
-            onMouseEnter={() => {
-              syncCategories();
-              setRoomDropdownOpen(true);
-            }}
+            onMouseEnter={() => setRoomDropdownOpen(true)}
             onMouseLeave={() => setRoomDropdownOpen(false)}
           >
             <button
               type="button"
-              onClick={() => {
-                syncCategories();
-                setRoomDropdownOpen((prev) => !prev);
-              }}
+              onClick={() => setRoomDropdownOpen((prev) => !prev)}
               aria-expanded={roomDropdownOpen}
               aria-haspopup="true"
               className="text-[#e8d29b] hover:text-[#fff5db] transition-colors relative py-1 cursor-pointer flex items-center gap-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 hover:after:w-full after:h-[1.5px] after:bg-gradient-to-r after:from-[#d4af37] after:to-[#fae7b3] after:transition-all after:duration-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] group"
@@ -372,10 +332,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Rooms & Villas Accordion - Clean & Sederhana Cuma Nama Kategori */}
             <div className="border-b border-[#d4af37]/15 pb-1">
               <button
-                onClick={() => {
-                  syncCategories();
-                  setMobileRoomsExpanded(!mobileRoomsExpanded);
-                }}
+                onClick={() => setMobileRoomsExpanded(!mobileRoomsExpanded)}
                 className="w-full text-left py-2 hover:text-[#fff5db] transition-colors flex items-center justify-between"
               >
                 <span>Rooms & Villas</span>

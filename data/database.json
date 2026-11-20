@@ -1,15 +1,15 @@
 {
   "resortInfo": {
     "name": "Chevilly Resort and Camp",
-    "tagline": "Kemewahan Abadi di Ketinggian 2.450 mdpl",
+    "tagline": "Kemewahan Abadi di Ketinggian 2.140 mdpl",
     "location": "Puncak Lembah Pinus, Chevilly Ridge, Indonesia",
     "coordinates": "7°18'42\"S 110°26'18\"E",
-    "elevation": "2.450 meter di atas permukaan laut",
-    "phone": "+62 (21) 8089-2450",
+    "elevation": "2.140 meter di atas permukaan laut",
+    "phone": "+62 859-3454-4901",
     "whatsapp": "6285934544901",
     "whatsappFormatted": "+62 859-3454-4901",
     "bdeName": "DEFIT",
-    "conciergeEmail": "concierge@chevilly-resort.com",
+    "conciergeEmail": "defitchevilly@gmail.com",
     "checkInTime": "15:00 WIB",
     "checkOutTime": "12:00 WIB"
   },
@@ -39,26 +39,26 @@
   "rooms": [
     {
       "id": "deluxe",
-      "name": "Deluxe Room (Hortensia & Jasmine)",
-      "kicker": "Kamar Deluxe Pilihan dengan Balkon Lembah Pinus",
+      "name": "Deluxe King Bed",
+      "kicker": "Kamar Deluxe Pilihan Terbaik Chevillly Resort & Camp",
       "category": "deluxe",
-      "priceIdr": 850000,
-      "priceUsd": 55,
+      "priceIdr": 450000,
+      "priceUsd": 25,
       "isAvailable": true,
       "totalRooms": 12,
-      "area": "38 m²",
-      "capacity": "2 Dewasa, 1 Anak",
+      "area": "+- 38 m²",
+      "capacity": "2 Dewasa",
       "maxAdults": 2,
-      "maxChildren": 1,
-      "bedType": "1 Custom Alpine King Bed / Twin Bed",
-      "altitude": "2.430 mdpl",
+      "maxChildren": 0,
+      "bedType": "Custom King Bed",
+      "altitude": "2.140 mdpl",
       "rating": 4.97,
       "reviewsCount": 184,
-      "image": "/src/assets/images/deluxe_room_resort_1794221424197.jpg",
+      "image": "/uploads/20250306_145644_jpg_1795158851747_srk2.jpg",
       "gallery": [
-        "/src/assets/images/deluxe_room_resort_1794221424197.jpg",
-        "/src/assets/images/suite_alpine_villa_1794216168656.jpg",
-        "/src/assets/images/hero_mountain_resort_1794216168533.jpg"
+        "/uploads/20250306_145644_jpg_1795158851747_srk2.jpg",
+        "/uploads/20250306_145817_jpg_1795158869762_goml.jpg",
+        "/uploads/20250306_145843_jpg_1795158895633_7bx7.jpg"
       ],
       "features": [
         "Balkon kayu pribadi dengan panorama megah pegunungan berkabut",
@@ -66,34 +66,42 @@
         "Dinding panel kayu cemara alami berpadu pencahayaan hangat arsitektural",
         "Kamar mandi marmer mewah dengan rain-shower hangat bertenaga"
       ],
-      "description": "Kamar Deluxe Hortensia & Jasmine menghadirkan kehangatan suaka pribadi di ketinggian pegunungan Chevilly. Dirancang dengan sentuhan kayu alami berkelas dan balkon panorama lembah pinus.",
+      "description": "Kamar Deluxe  King Bed menghadirkan kehangatan pribadi dan menjaga privasi di ketinggian pegunungan Chevilly. Dirancang dengan sentuhan kayu alami berkelas dan balkon panorama lembah Chevilly",
       "viewType": "Panorama Puncak Pegunungan & Lembah Kabut dari Balkon",
       "includedServices": [
-        "Sarapan gourmet hangat untuk 2 tamu",
+        "Voucher Sarapan  hangat untuk 2 tamu",
+        "Free Wifi",
         "Akses gratis ke area kolam renang & taman Chevilly"
-      ]
+      ],
+      "priceSunThursIdr": 450000,
+      "priceFridayIdr": 525000,
+      "priceSaturdayIdr": 775000,
+      "priceSunThursUsd": 25,
+      "priceFridayUsd": 29,
+      "priceSaturdayUsd": 42
     },
     {
       "id": "ftb",
-      "name": "FTB - Fullboard Twin Bed (Orchid & Marigold)",
+      "name": "FTB - Fullboard/ Family Twin Bed",
       "kicker": "Pilihan Twin Bed Ideal untuk Paket Gathering & Corporate Meeting",
       "category": "ftb",
-      "priceIdr": 1050000,
-      "priceUsd": 68,
+      "priceIdr": 760000,
+      "priceUsd": 42,
       "isAvailable": true,
-      "totalRooms": 10,
-      "area": "42 m²",
+      "totalRooms": 22,
+      "area": "+-42 m²",
       "capacity": "2 Dewasa",
       "maxAdults": 2,
-      "maxChildren": 1,
-      "bedType": "2 Single Twin Beds (Custom Alpine Comfort)",
-      "altitude": "2.420 mdpl",
+      "maxChildren": 0,
+      "bedType": "2 Single Twin Beds (Custom Comfort)",
+      "altitude": "2.150 mdpl",
       "rating": 4.93,
       "reviewsCount": 146,
-      "image": "/src/assets/images/suite_alpine_villa_1794216168656.jpg",
+      "image": "/uploads/IMG_3479-2_jpg_1795160144133_l8kj.jpg",
       "gallery": [
-        "/src/assets/images/suite_alpine_villa_1794216168656.jpg",
-        "/src/assets/images/deluxe_room_resort_1794221424197.jpg"
+        "/uploads/IMG_3479-2_jpg_1795160144133_l8kj.jpg",
+        "/uploads/IMG_3572_jpg_1795160162520_yy32.jpg",
+        "/uploads/IMG_3513-2_jpg_1795160214025_h2kj.jpg"
       ],
       "features": [
         "Dua tempat tidur single twin bed empuk dengan duvet wol hangat",
@@ -106,29 +114,36 @@
       "includedServices": [
         "Sarapan prasmanan lezat untuk 2 orang",
         "Opsi integrasi paket meeting fullboard 3x makan & 2x coffee break"
-      ]
+      ],
+      "priceSunThursIdr": 760000,
+      "priceFridayIdr": 820000,
+      "priceSaturdayIdr": 1200000,
+      "priceSunThursUsd": 42,
+      "priceFridayUsd": 45,
+      "priceSaturdayUsd": 66
     },
     {
       "id": "executive",
-      "name": "Executive Mountain Suite (Asoka & Aster)",
+      "name": "Executive Mountain Suite",
       "kicker": "Suite Eksekutif Luas dengan Living Room & Panorama Pegunungan",
       "category": "executive",
-      "priceIdr": 1350000,
-      "priceUsd": 88,
+      "priceIdr": 570000,
+      "priceUsd": 31,
       "isAvailable": true,
       "totalRooms": 8,
-      "area": "52 m²",
+      "area": "+-52 m²",
       "capacity": "2 Dewasa, 2 Anak",
       "maxAdults": 2,
-      "maxChildren": 2,
+      "maxChildren": 0,
       "bedType": "1 Super King Bed + Sofa Bed Nyaman",
       "altitude": "2.435 mdpl",
       "rating": 4.96,
       "reviewsCount": 162,
-      "image": "/src/assets/images/hero_mountain_resort_1794216168533.jpg",
+      "image": "/uploads/20250728_145052_jpg_1795160418846_z5h3.jpg",
       "gallery": [
-        "/src/assets/images/hero_mountain_resort_1794216168533.jpg",
-        "/src/assets/images/deluxe_room_resort_1794221424197.jpg"
+        "/uploads/20250728_145052_jpg_1795160418846_z5h3.jpg",
+        "/uploads/20250728_145212-2_jpg_1795160452181_oefv.jpg",
+        "/uploads/20250728_144403-2_jpg_1795160506639_gikx.jpg"
       ],
       "features": [
         "Area living room privat terpisah dengan sofa empuk kasmir",
@@ -136,38 +151,44 @@
         "Smart TV 50\" di ruang tamu & kamar tidur",
         "Kamar mandi marmer dengan bathtub berendam air hangat alami"
       ],
-      "description": "Executive Suite di sayap Asoka & Aster menawarkan ruang tinggal ekstra lapang dengan pemisahan area tidur dan living room santai.",
+      "description": "Executive Suite menawarkan ruang tinggal ekstra lapang dengan pemisahan area tidur dan living room santai.",
       "viewType": "Panorama Perbukitan Hijau & Langit Puncak",
       "includedServices": [
         "Sarapan gourmet ala carte diantar ke kamar atau buffet",
         "Welcome fruit basket segar khas lereng pegunungan"
-      ]
+      ],
+      "priceSunThursIdr": 570000,
+      "priceFridayIdr": 770000,
+      "priceSaturdayIdr": 900000,
+      "priceSunThursUsd": 31,
+      "priceFridayUsd": 42,
+      "priceSaturdayUsd": 49
     },
     {
       "id": "premiere",
-      "name": "Premiere Luxury Room (Rafflesia & Clover)",
-      "kicker": "Kamar Premiere Kontemporer dengan Teras Bathtub Romantis",
+      "name": "Premiere Luxury Room",
+      "kicker": "Kamar Premiere Kontemporer",
       "category": "premiere",
-      "priceIdr": 1650000,
-      "priceUsd": 108,
+      "priceIdr": 650000,
+      "priceUsd": 36,
       "isAvailable": true,
       "totalRooms": 6,
-      "area": "58 m²",
-      "capacity": "2 Dewasa, 2 Anak",
+      "area": "- 58 m²",
+      "capacity": "2 Dewasa,",
       "maxAdults": 2,
       "maxChildren": 2,
       "bedType": "1 Super King Alpine Bed",
-      "altitude": "2.440 mdpl",
+      "altitude": "2.140 mdpl",
       "rating": 4.98,
       "reviewsCount": 135,
-      "image": "/src/assets/images/suite_alpine_villa_1794216168656.jpg",
+      "image": "/uploads/20250801_134530_jpg_1795160668788_69d9.jpg",
       "gallery": [
-        "/src/assets/images/suite_alpine_villa_1794216168656.jpg",
-        "/src/assets/images/hero_mountain_resort_1794216168533.jpg"
+        "/uploads/20250801_134530_jpg_1795160668788_69d9.jpg",
+        "/uploads/20250801_134458_jpg_1795160681800_f963.jpg",
+        "/uploads/20250801_134440-2_jpg_1795160707861_cuxm.jpg"
       ],
       "features": [
         "Arsitektur interior mewah dengan perpaduan marmer dan aksen kayu jati",
-        "Bathtub relaksasi air hangat di sudut panorama dengan view lembah terbuka",
         "Balkon pribadi dengan daybed empuk untuk bersantai"
       ],
       "description": "Premiere Room memadukan estetika modern kontemporer dengan pesona alam pegunungan sejuk.",
@@ -175,41 +196,53 @@
       "includedServices": [
         "Sarapan hangat mewah berdua di balkon atau restoran",
         "Aromatherapy turndown service malam hari"
-      ]
+      ],
+      "priceSunThursIdr": 650000,
+      "priceFridayIdr": 700000,
+      "priceSaturdayIdr": 1000000,
+      "priceSunThursUsd": 36,
+      "priceFridayUsd": 38,
+      "priceSaturdayUsd": 55
     },
     {
       "id": "president-suite",
-      "name": "President Suite (The Presidential Peak Chalet)",
-      "kicker": "Hunian Tertinggi, Paling Privat & Panorama 360 Derajat",
+      "name": "President Suite",
+      "kicker": "Hunian Mewah Paling Privat & Panorama alam dan view glamping dengan balkon luas",
       "category": "president-suite",
-      "priceIdr": 4500000,
-      "priceUsd": 295,
+      "priceIdr": 790000,
+      "priceUsd": 43,
       "isAvailable": true,
-      "totalRooms": 2,
-      "area": "185 m²",
-      "capacity": "4 Dewasa, 2 Anak",
+      "totalRooms": 4,
+      "area": "+-48 m²",
+      "capacity": "2 Dewasa, ",
       "maxAdults": 4,
       "maxChildren": 2,
-      "bedType": "2 King Master Suite + Private Plunge Pool",
-      "altitude": "2.450 mdpl",
+      "bedType": "Master Suite",
+      "altitude": "2.150 mdpl",
       "rating": 4.99,
       "reviewsCount": 94,
-      "image": "/src/assets/images/hero_mountain_resort_1794216168533.jpg",
+      "image": "/uploads/IMG_0375_jpg_1795161132679_rru1.jpg",
       "gallery": [
-        "/src/assets/images/hero_mountain_resort_1794216168533.jpg",
-        "/src/assets/images/suite_alpine_villa_1794216168656.jpg"
+        "/uploads/IMG_0375_jpg_1795161132679_rru1.jpg",
+        "/uploads/IMG_0393_jpg_1795161158042_mekb.jpg",
+        "/uploads/IMG_0347_jpg_1795161181141_ll4b.jpg"
       ],
       "features": [
-        "Kolam air hangat privat (heated plunge pool) di balkon puncak terbuka",
-        "Ruang tamu agung dengan perapian batu alam dan langit-langit katedral tinggi",
+        "Ruang private dan suasana adem",
         "Layanan dedicated butler pribadi 24 jam siaga memenuhi kebutuhan Anda"
       ],
-      "description": "President Suite adalah mahakarya akomodasi tertinggi di Chevilly Resort and Camp dengan privasi dan panorama spektakuler 360 derajat.",
-      "viewType": "Puncak Gunung Tertinggi & Siluet Lembah Kabut 360°",
+      "description": "President Suite adalah mahakarya akomodasi tertinggi di Chevilly Resort and Camp dengan privasi dan panorama  alam yang cantik",
+      "viewType": "Puncak view alam lembah chevilly",
       "includedServices": [
-        "Antar-jemput buggy car eksklusif VIP & akses helipad",
-        "Sarapan privat mewah yang disajikan langsung oleh chef di teras"
-      ]
+        "Antar-jemput buggy car eksklusif VIP",
+        "Sarapan privat mewah yang disajikan langsung oleh chef di vine restoran"
+      ],
+      "priceSunThursIdr": 790000,
+      "priceFridayIdr": 860000,
+      "priceSaturdayIdr": 1265000,
+      "priceSunThursUsd": 43,
+      "priceFridayUsd": 47,
+      "priceSaturdayUsd": 69
     },
     {
       "id": "villas",
@@ -228,10 +261,11 @@
       "altitude": "2.430 mdpl",
       "rating": 4.98,
       "reviewsCount": 112,
-      "image": "/src/assets/images/suite_alpine_villa_1794216168656.jpg",
+      "image": "/uploads/20250108_101417_jpg_1795169455088_qck5.jpg",
       "gallery": [
-        "/src/assets/images/suite_alpine_villa_1794216168656.jpg",
-        "/src/assets/images/hero_mountain_resort_1794216168533.jpg"
+        "/uploads/20250108_101417_jpg_1795169455088_qck5.jpg",
+        "/uploads/20250108_101508_jpg_1795169466669_20h9.jpg",
+        "/uploads/20250108_101846_jpg_1795169485670_163f.jpg"
       ],
       "features": [
         "Bangunan villa privat mandiri 2 lantai dengan halaman rumput asri",
@@ -262,9 +296,11 @@
       "altitude": "2.420 mdpl",
       "rating": 4.91,
       "reviewsCount": 210,
-      "image": "/src/assets/images/deluxe_room_resort_1794221424197.jpg",
+      "image": "/uploads/IMG_0247_jpg_1795170052334_rlvk.jpg",
       "gallery": [
-        "/src/assets/images/deluxe_room_resort_1794221424197.jpg"
+        "/uploads/IMG_0247_jpg_1795170052334_rlvk.jpg",
+        "/uploads/IMG_0255-2_jpg_1795170061729_vw3g.jpg",
+        "/uploads/IMG_0192-2_jpg_1795170080794_au1l.jpg"
       ],
       "features": [
         "Ranjang bertingkat kokoh dari baja berbalut kayu halus anti-goyang",
@@ -295,9 +331,11 @@
       "altitude": "2.425 mdpl",
       "rating": 4.89,
       "reviewsCount": 178,
-      "image": "/src/assets/images/suite_alpine_villa_1794216168656.jpg",
+      "image": "/uploads/20250801_134410_jpg_1795169755879_qr9b.jpg",
       "gallery": [
-        "/src/assets/images/suite_alpine_villa_1794216168656.jpg"
+        "/uploads/20250801_134410_jpg_1795169755879_qr9b.jpg",
+        "/uploads/20250801_134518_jpg_1795169776368_jxyq.jpg",
+        "/uploads/20250801_134340_jpg_1795169799132_j3it.jpg"
       ],
       "features": [
         "Kamar tidur bersih dan tenang untuk rehat setelah perjalanan jauh",
@@ -309,6 +347,176 @@
       "includedServices": [
         "Penggunaan kamar fleksibel (pilihan durasi day-use 4-6 jam)",
         "Handuk dan amenitas mandi lengkap untuk 2 orang"
+      ]
+    },
+    {
+      "id": "room-deluxe-1795159046300",
+      "name": "Deluxe Twin Bed",
+      "kicker": "Kamar Deluxe untuk 2 bed contoh untuk ghatering atau pasangan meeting",
+      "category": "deluxe",
+      "priceIdr": 450000,
+      "priceUsd": 25,
+      "priceSunThursIdr": 450000,
+      "priceFridayIdr": 525000,
+      "priceSaturdayIdr": 775000,
+      "priceSunThursUsd": 25,
+      "priceFridayUsd": 29,
+      "priceSaturdayUsd": 42,
+      "isAvailable": true,
+      "totalRooms": 10,
+      "area": "+- 38 m²",
+      "capacity": "2 Dewasa",
+      "maxAdults": 2,
+      "maxChildren": 1,
+      "bedType": "Custom Twin Bed",
+      "altitude": "2.140 mdpl",
+      "rating": 4.96,
+      "reviewsCount": 15,
+      "image": "/uploads/20250714_093135_jpg_1795159372217_mv4p.jpg",
+      "gallery": [
+        "/uploads/20250714_093135_jpg_1795159372217_mv4p.jpg",
+        "/uploads/20250714_093929_jpg_1795159397238_nt8n.jpg",
+        "/uploads/20250714_093838_jpg_1795159431794_bbwp.jpg"
+      ],
+      "features": [
+        "Balkon pribadi dengan pemandangan pegunungan",
+        "Kamar mandi marmer dengan shower air hangat"
+      ],
+      "description": "Akomodasi berkelas di kawasan sejuk pegunungan Chevilly Resort and Camp.",
+      "viewType": "Panorama Puncak Pegunungan & Lembah Kabut",
+      "includedServices": [
+        "Sarapan gourmet hangat untuk 2 tamu",
+        "Akses gratis area taman & kolam renang Chevilly"
+      ]
+    },
+    {
+      "id": "room-villas-1795170232643",
+      "name": "Villa Kayu Chevilly (2 Lantai)",
+      "kicker": "Villa Kayu Eksklusif 2 Lantai dengan Taman Hijau & Balkon Pegunungan",
+      "category": "villas",
+      "priceIdr": 3200000,
+      "priceUsd": 210,
+      "priceSunThursIdr": 3200000,
+      "priceFridayIdr": 3900000,
+      "priceSaturdayIdr": 4850000,
+      "priceSunThursUsd": 210,
+      "priceFridayUsd": 252,
+      "priceSaturdayUsd": 315,
+      "isAvailable": true,
+      "totalRooms": 4,
+      "area": "180 m²",
+      "capacity": "6 - 8 Tamu",
+      "maxAdults": 6,
+      "maxChildren": 2,
+      "bedType": "2 King Bed + 2 Single Beds",
+      "altitude": "2.450 mdpl",
+      "rating": 4.95,
+      "reviewsCount": 48,
+      "image": "/uploads/20250522_131211_jpg_1795170178061_mpnv.jpg",
+      "gallery": [
+        "/uploads/20250522_131211_jpg_1795170178061_mpnv.jpg",
+        "/uploads/20250522_131342_jpg_1795170187228_r7l3.jpg",
+        "/uploads/20250522_133115_jpg_1795170232643_ng16.jpg"
+      ],
+      "features": [
+        "Villa Kayu 2 Lantai",
+        "Balkon Panorama",
+        "Ruang Keluarga Luas",
+        "Smart TV & Wi-Fi",
+        "Water Heater"
+      ],
+      "description": "Villa kayu bernuansa alami 2 lantai dikelilingi taman hijau asri dan udara sejuk pegunungan Chevilly, ideal untuk liburan keluarga besar.",
+      "viewType": "Pemandangan Taman & Pegunungan",
+      "includedServices": [
+        "Sarapan Pagi",
+        "Tiket Masuk Kawasan Wisata",
+        "Akses Kolam Renang"
+      ]
+    },
+    {
+      "id": "room-camp-1795170479016",
+      "name": "Camp & Glamping Peony (Tenda VIP Gold)",
+      "kicker": "Sensasi Berkemah Mewah Bintang Lima dengan Ranjang Hotel & AC",
+      "category": "camp",
+      "priceIdr": 850000,
+      "priceUsd": 55,
+      "priceSunThursIdr": 850000,
+      "priceFridayIdr": 1050000,
+      "priceSaturdayIdr": 1350000,
+      "priceSunThursUsd": 55,
+      "priceFridayUsd": 68,
+      "priceSaturdayUsd": 88,
+      "isAvailable": true,
+      "totalRooms": 6,
+      "area": "40 m²",
+      "capacity": "2 - 4 Tamu",
+      "maxAdults": 4,
+      "maxChildren": 2,
+      "bedType": "2 Queen Beds (Glamping VIP)",
+      "altitude": "2.450 mdpl",
+      "rating": 4.95,
+      "reviewsCount": 64,
+      "image": "/uploads/IMG_8766_jpg_1795170432904_992r.jpg",
+      "gallery": [
+        "/uploads/IMG_8766_jpg_1795170432904_992r.jpg",
+        "/uploads/IMG_8768_jpg_1795170454712_80zp.jpg",
+        "/uploads/IMG_8665_jpg_1795170479016_tt89.jpg"
+      ],
+      "features": [
+        "Tenda Glamping VIP",
+        "AC & Smart TV",
+        "Kamar Mandi Dalam Air Panas",
+        "Kettle & Amenities Lengkap"
+      ],
+      "description": "Tenda glamping mewah bernuansa emas & putih lengkap dengan tempat tidur hotel empuk, Smart TV, sofa santai, dan udara pegunungan sejuk.",
+      "viewType": "Pemandangan Lembah & Camp Area",
+      "includedServices": [
+        "Sarapan Pagi",
+        "Tiket Masuk Kawasan Wisata",
+        "Akses Kolam Renang"
+      ]
+    },
+    {
+      "id": "room-camp-1795170676089",
+      "name": "Camp & Glamping Deluxe (Tenda Mint)",
+      "kicker": "Glamping Nyaman Ber-AC untuk Keluarga & Sahabat di Chevilly Camp",
+      "category": "camp",
+      "priceIdr": 850000,
+      "priceUsd": 55,
+      "priceSunThursIdr": 850000,
+      "priceFridayIdr": 1050000,
+      "priceSaturdayIdr": 1350000,
+      "priceSunThursUsd": 55,
+      "priceFridayUsd": 68,
+      "priceSaturdayUsd": 88,
+      "isAvailable": true,
+      "totalRooms": 6,
+      "area": "38 m²",
+      "capacity": "2 - 4 Tamu",
+      "maxAdults": 4,
+      "maxChildren": 2,
+      "bedType": "2 Double Beds (Glamping Deluxe)",
+      "altitude": "2.450 mdpl",
+      "rating": 4.9,
+      "reviewsCount": 52,
+      "image": "/uploads/IMG_0457_jpg_1795170645775_qsws.jpg",
+      "gallery": [
+        "/uploads/IMG_0457_jpg_1795170645775_qsws.jpg",
+        "/uploads/IMG_0349_jpg_1795170655245_4md9.jpg",
+        "/uploads/IMG_0486_jpg_1795170676089_dj1o.jpg"
+      ],
+      "features": [
+        "Tenda Glamping Ber-AC",
+        "Kamar Mandi Dalam",
+        "Lampu Tidur Hangat",
+        "Akses Dekat Wahana"
+      ],
+      "description": "Pengalaman menginap glamping bernuansa mint yang sejuk dan nyaman, dilengkapi AC, 2 ranjang empuk, dan fasilitas kamar mandi bersih.",
+      "viewType": "Pemandangan Taman & Camp Area",
+      "includedServices": [
+        "Sarapan Pagi",
+        "Tiket Masuk Kawasan Wisata",
+        "Akses Kolam Renang"
       ]
     }
   ],
@@ -325,7 +533,7 @@
       "altitude": "2.450 mdpl",
       "rating": 4.96,
       "reviewsCount": 420,
-      "image": "/src/assets/images/waterpark_chevilly_1794289440273.jpg",
+      "image": "/uploads/IMG_8833_jpg_1795170950163_iqte.jpg",
       "departureTimes": [
         "08:00 - 17:00 WIB (Buka Setiap Hari)"
       ],
@@ -340,7 +548,12 @@
         "Kursi santai sun lounger tepi kolam"
       ],
       "description": "Bermain air seru di tengah udara sejuk pegunungan. Kolam renang jernih dilengkapi seluncuran air melingkar dan ember tumpah.",
-      "guideType": "Lifeguard Bersertifikasi & Tim Medis Siaga"
+      "guideType": "Lifeguard Bersertifikasi & Tim Medis Siaga",
+      "gallery": [
+        "/uploads/IMG_8833_jpg_1795170950163_iqte.jpg",
+        "/uploads/IMG_8996_jpg_1795170968657_sx5r.jpg",
+        "/uploads/IMG_9819_jpg_1795170994357_cpiv.jpg"
+      ]
     },
     {
       "id": "aviary-chevilly",
@@ -354,7 +567,7 @@
       "altitude": "2.450 mdpl",
       "rating": 4.98,
       "reviewsCount": 385,
-      "image": "/src/assets/images/aviary_chevilly_1794289455105.jpg",
+      "image": "/uploads/images__1__jpg_1795171281736_iemp.jpg",
       "departureTimes": [
         "08:30 - 16:30 WIB (Sesi Interaksi)"
       ],
@@ -368,7 +581,10 @@
         "Sarung tangan pelindung untuk interaksi burung"
       ],
       "description": "Masuki kubah konservasi aviary raksasa yang rimbun dengan jembatan kayu estetik. Berinteraksi langsung dengan burung merak dan macaw.",
-      "guideType": "Animal Keeper & Edukator Satwa Berpengalaman"
+      "guideType": "Animal Keeper & Edukator Satwa Berpengalaman",
+      "gallery": [
+        "/uploads/images__1__jpg_1795171281736_iemp.jpg"
+      ]
     },
     {
       "id": "chinatown-chevilly",
@@ -382,7 +598,7 @@
       "altitude": "2.450 mdpl",
       "rating": 4.95,
       "reviewsCount": 512,
-      "image": "/src/assets/images/chinatown_chevilly_1794289471017.jpg",
+      "image": "/uploads/20260105_110635_jpg_1795171353894_vxux.jpg",
       "departureTimes": [
         "08:00 - 18:00 WIB (Setiap Hari)"
       ],
@@ -396,7 +612,12 @@
         "Payung kertas hias tradisional untuk properti foto"
       ],
       "description": "Suasana oriental yang kental dan sangat instagramable dengan ribuan lampion merah bergantungan, jembatan kayu merah, dan pagoda.",
-      "guideType": "Staff Fotografi & Pendamping Spot Wisata"
+      "guideType": "Staff Fotografi & Pendamping Spot Wisata",
+      "gallery": [
+        "/uploads/20260105_110635_jpg_1795171353894_vxux.jpg",
+        "/uploads/20260105_110653_jpg_1795171372829_w4il.jpg",
+        "/uploads/20260105_114221_jpg_1795171407148_uw50.jpg"
+      ]
     },
     {
       "id": "colosseum-chevilly",
@@ -410,7 +631,7 @@
       "altitude": "2.450 mdpl",
       "rating": 4.99,
       "reviewsCount": 680,
-      "image": "/src/assets/images/colosseum_chevilly_1794289493620.jpg",
+      "image": "/uploads/20250717_115127_jpg_1795171473173_tkga.jpg",
       "departureTimes": [
         "08:00 - 18:00 WIB"
       ],
@@ -424,7 +645,12 @@
         "Photo Spot Marker sudut pengambilan gambar terbaik"
       ],
       "description": "Replika megah arsitektur Colosseum Roma kuno yang menjadi ikon paling populer di Chevilly Resort.",
-      "guideType": "Koordinator Area & Fotografer Resor"
+      "guideType": "Koordinator Area & Fotografer Resor",
+      "gallery": [
+        "/uploads/20250717_115127_jpg_1795171473173_tkga.jpg",
+        "/uploads/20250717_115342_jpg_1795171494100_wg6b.jpg",
+        "/uploads/20250717_115807_jpg_1795171524809_zfd7.jpg"
+      ]
     },
     {
       "id": "zip-coaster-chevilly",
@@ -438,7 +664,7 @@
       "altitude": "2.450 mdpl",
       "rating": 4.97,
       "reviewsCount": 290,
-      "image": "/src/assets/images/zip_coaster_chevilly_1794289515116.jpg",
+      "image": "/uploads/images_jpg_1795171793871_84rr.jpg",
       "departureTimes": [
         "09:00 - 16:30 WIB"
       ],
@@ -453,7 +679,10 @@
         "Helm keselamatan full protection"
       ],
       "description": "Kombinasi mendebarkan antara flying fox dan roller coaster di udara mengikuti kontur lembah pepohonan pinus.",
-      "guideType": "Instruktur Outbound & Operator Wahana Berlisensi"
+      "guideType": "Instruktur Outbound & Operator Wahana Berlisensi",
+      "gallery": [
+        "/uploads/images_jpg_1795171793871_84rr.jpg"
+      ]
     },
     {
       "id": "labirin-kids-zone",
@@ -528,7 +757,7 @@
       "altitude": "2.450 mdpl",
       "rating": 4.96,
       "reviewsCount": 520,
-      "image": "/src/assets/images/hero_mountain_resort_1794216168533.jpg",
+      "image": "/uploads/20260203_112432_jpg_1795171912354_k5pw.jpg",
       "departureTimes": [
         "08:00 - 18:00 WIB"
       ],
@@ -542,7 +771,12 @@
         "Shoe covers khusus untuk melangkah di jembatan kaca"
       ],
       "description": "Jembatan kaca gantung spektakuler dengan sensasi melayang di atas lembah kabut hijau serta camping ground.",
-      "guideType": "Tim Pemandu Wisata & Fotografer Panorama"
+      "guideType": "Tim Pemandu Wisata & Fotografer Panorama",
+      "gallery": [
+        "/uploads/20260203_112432_jpg_1795171912354_k5pw.jpg",
+        "/uploads/20260203_112526_jpg_1795171936147_b25r.jpg",
+        "/uploads/20260203_113520_jpg_1795171947335_tpgo.jpg"
+      ]
     }
   ],
   "reservations": [
@@ -579,24 +813,6 @@
     "role": "Super Administrator"
   },
   "addons": [
-    {
-      "id": "heli-transfer",
-      "name": "Antar-Jemput Helikopter Eksekutif (Bandara ke Resor)",
-      "description": "Lewati kemacetan darat dengan penerbangan 25 menit langsung mendarat di helipad pribadi resor kami.",
-      "priceIdr": 18000000,
-      "priceUsd": 1180,
-      "unit": "per penerbangan (maks 5 penumpang)",
-      "isActive": true
-    },
-    {
-      "id": "champagne-welcome",
-      "name": "Paket Sambutan Dom Pérignon & Caviar di Kamar",
-      "description": "Disajikan dingin dengan es kristal di perapian kamar Anda saat kedatangan.",
-      "priceIdr": 3200000,
-      "priceUsd": 210,
-      "unit": "per paket",
-      "isActive": true
-    },
     {
       "id": "private-firepit",
       "name": "Sesi Api Unggun Romantis & Teropong Bintang",
@@ -796,6 +1012,778 @@
       "priceSaturdayUsd": 33,
       "bedType": "1 Queen Bed / 2 Single Beds",
       "desc": "Day-Use Refreshment & Rest"
+    },
+    {
+      "id": "camp",
+      "label": "Camp & Glamping",
+      "name": "Camp & Glamping",
+      "kicker": "Akomodasi Pilihan di Ketinggian Chevilly",
+      "desc": "",
+      "area": "40 m²",
+      "capacity": "2 Dewasa",
+      "bedType": "1 King Bed",
+      "priceSunThursIdr": 850000,
+      "priceFridayIdr": 1050000,
+      "priceSaturdayIdr": 1350000,
+      "priceIdr": 850000,
+      "priceUsd": 55
     }
-  ]
+  ],
+  "reviews": [
+    {
+      "id": "rev-1",
+      "authorName": "Dr. Nadia Wiratama",
+      "authorRole": "Spesialis Bedah & Penggemar Alam · Jakarta",
+      "quote": "Menyaksikan kabut pagi membuka panorama puncak alpine dari perapian Presidential Chalet adalah momen paling menenangkan dalam hidup kami. Layanan butler begitu penuh perhatian dan hangat.",
+      "rating": 5,
+      "isActive": true,
+      "createdAt": "2026-10-12"
+    },
+    {
+      "id": "rev-2",
+      "authorName": "Marcus & Helena Vance",
+      "authorRole": "Architectural Conservators · Zurich",
+      "quote": "The private glacier ridge trek was world-class. UIAGM certified guides gave us absolute confidence, and the sunrise champagne table above the clouds was unforgettable.",
+      "rating": 5,
+      "isActive": true,
+      "createdAt": "2026-10-20"
+    },
+    {
+      "id": "rev-3",
+      "authorName": "Rayhan Syahputra",
+      "authorRole": "Tech Founder & Alpine Enthusiast · Bandung",
+      "quote": "Kolam air panas belerang alami di tepi jurang batu saat senja adalah pengalaman restoratif terbaik. Udara pegunungannya sangat segar dan murni.",
+      "rating": 5,
+      "isActive": true,
+      "createdAt": "2026-11-01"
+    }
+  ],
+  "heroVideos": [
+    {
+      "id": "hero-vid-1",
+      "title": "Chevilly Resort & Camp Bogor — Full Cinematic Tour & Panorama Puncak",
+      "youtubeUrl": "https://youtu.be/XszGJR025RM?si=tuMvbJ7-A0JA7ir2",
+      "badge": "Full Tour HD 1080p",
+      "duration": "Full Tour (08:00 - 22:00)",
+      "description": "Eksplorasi lengkap lanskap alam sejuk 2.450 mdpl, villa kayu eksklusif, kolam renang outdoor, dan fasilitas rekreasi keluarga terlengkap.",
+      "isActive": true,
+      "thumbnail": "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80",
+      "showTitle": false,
+      "showDescription": false,
+      "showBadge": false,
+      "showDuration": false
+    }
+  ],
+  "venues": [
+    {
+      "id": "vine-restaurant",
+      "name": "Vine Restaurant (Indonesian & Western Cuisine)",
+      "category": "resto",
+      "categoryLabel": "Resto & Cafe",
+      "capacity": "150 Kursi",
+      "hours": "07:00 - 22:00 WIB",
+      "priceNote": "Mulai Rp 35.000 / porsi",
+      "description": "Restoran utama bernuansa pegunungan sejuk dengan hidangan nusantara, western, dan pemandangan lembah hijau nan asri.",
+      "image": "/src/assets/images/dining_summit_bistro_1794216168611.jpg",
+      "features": [
+        "Indoor & Semi Outdoor",
+        "Live Music Weekend",
+        "Prasmanan & Ala Carte",
+        "VIP Dining Area"
+      ]
+    },
+    {
+      "id": "le-ciel-cafe",
+      "name": "Le Ciel Cafe & Pastry Bar",
+      "category": "resto",
+      "categoryLabel": "Resto & Cafe",
+      "capacity": "80 Kursi",
+      "hours": "09:00 - 23:00 WIB",
+      "priceNote": "Mulai Rp 25.000",
+      "description": "Kafe modern estetik menyajikan aneka specialty coffee, pastry renyah, dessert, dan spot foto panorama langit perbukitan.",
+      "image": "/src/assets/images/suite_alpine_villa_1794216168656.jpg",
+      "features": [
+        "Specialty Coffee",
+        "Artisan Bakery",
+        "Sunset Viewing Deck",
+        "High Speed Wi-Fi"
+      ]
+    },
+    {
+      "id": "pujasera-1",
+      "name": "Pujasera 1 (Kuliner Khas Nusantara)",
+      "category": "resto",
+      "categoryLabel": "Resto & Cafe",
+      "capacity": "200 Kursi",
+      "hours": "08:00 - 21:00 WIB",
+      "priceNote": "Mulai Rp 15.000",
+      "description": "Sentra kuliner aneka hidangan khas Jawa Barat, nasi liwet komplit, bakso kuah hangat, soto, dan jajanan tradisional.",
+      "image": "/src/assets/images/chinatown_chevilly_1794289471017.jpg",
+      "features": [
+        "Aneka Stand Makanan",
+        "Harga Terjangkau",
+        "Kapasitas Rombongan",
+        "Pelayanan Cepat"
+      ]
+    },
+    {
+      "id": "pujasera-3",
+      "name": "Pujasera 3 (Kantin Wisata & Minuman Segar)",
+      "category": "resto",
+      "categoryLabel": "Resto & Cafe",
+      "capacity": "120 Kursi",
+      "hours": "08:00 - 18:00 WIB",
+      "priceNote": "Mulai Rp 10.000",
+      "description": "Area kuliner dekat wahana air waterpark menyediakan camilan renyah, es kelapa muda, jus segar, dan aneka minuman dingin.",
+      "image": "/src/assets/images/waterpark_chevilly_1794289440273.jpg",
+      "features": [
+        "Dekat Wahana Air",
+        "Es Kelapa Muda & Jus",
+        "Snack & Fast Food",
+        "Tempat Istirahat Wisatawan"
+      ]
+    },
+    {
+      "id": "oleh-oleh",
+      "name": "Pusat Oleh-Oleh & Souvenir Chevilly",
+      "category": "resto",
+      "categoryLabel": "Resto & Cafe",
+      "capacity": "Area Belanja Wisata",
+      "hours": "08:00 - 20:00 WIB",
+      "priceNote": "Mulai Rp 15.000",
+      "description": "Galeri suvenir resmi merchandise Chevilly, madu murni hutan, talas bogor, dodol, dan aneka camilan khas Bogor.",
+      "image": "/src/assets/images/labirin_chevilly_1794289535305.jpg",
+      "features": [
+        "Merchandise Resmi",
+        "Madu Murni & Herbal",
+        "Kue & Camilan Lokal",
+        "Kemasan Hadiah Cantik"
+      ]
+    },
+    {
+      "id": "grand-ballroom",
+      "name": "Grand Ballroom Summit Ridge",
+      "category": "meeting",
+      "categoryLabel": "Meeting Room",
+      "capacity": "300 - 500 Orang (Theatre)",
+      "hours": "Full Day / Half Day",
+      "priceNote": "Mulai Rp 250.000 / pax",
+      "description": "Ballroom megah bebas pilar dengan tata suara profesional, proyektor laser resolusi tinggi, panggung, dan pendingin ruangan sentral.",
+      "image": "/src/assets/images/resort_meeting_room_1794221120880.jpg",
+      "features": [
+        "Tanpa Pilar (Plafon 6m)",
+        "Sound System & Mic Wireless",
+        "Panggung & Podium",
+        "2x Coffee Break & Lunch"
+      ]
+    },
+    {
+      "id": "orchid-boardroom",
+      "name": "Orchid Executive Boardroom",
+      "category": "meeting",
+      "categoryLabel": "Meeting Room",
+      "capacity": "20 - 40 Orang (U-Shape / Board)",
+      "hours": "Full Day / Half Day",
+      "priceNote": "Mulai Rp 220.000 / pax",
+      "description": "Ruang rapat VIP berkarpet mewah untuk rapat direksi, negosiasi bisnis, dan pertemuan privat berkelas tinggi.",
+      "image": "/src/assets/images/hero_mountain_resort_1794216168533.jpg",
+      "features": [
+        "Smart Interactive TV 75\"",
+        "Kursi Ergonomis Kulit",
+        "Flipchart & Perlengkapan ATK",
+        "Free Flow Kopi & Teh"
+      ]
+    },
+    {
+      "id": "lavender-hall",
+      "name": "Lavender Meeting & Function Hall",
+      "category": "meeting",
+      "categoryLabel": "Meeting Room",
+      "capacity": "80 - 150 Orang (Classroom)",
+      "hours": "Full Day / Half Day",
+      "priceNote": "Mulai Rp 200.000 / pax",
+      "description": "Hall fleksibel untuk pelatihan karyawan, rapat koordinasi tahunan, seminar komunitas, dan workshop interaktif.",
+      "image": "/src/assets/images/deluxe_room_resort_1794221424197.jpg",
+      "features": [
+        "Layout Fleksibel",
+        "High Speed Wi-Fi 100Mbps",
+        "Screen & LCD Projector",
+        "Ruang Transit Pembicara"
+      ]
+    },
+    {
+      "id": "pine-wedding",
+      "name": "Pine Forest Outdoor Wedding Venue",
+      "category": "wedding",
+      "categoryLabel": "Wedding & Social",
+      "capacity": "300 - 800 Tamu Undangan",
+      "hours": "08:00 - 22:00 WIB",
+      "priceNote": "Paket Mulai Rp 28.500.000",
+      "description": "Pernikahan sakral dan romantis di bawah kanopi pohon pinus alami berhawa sejuk dengan instalasi lampu fairy lights.",
+      "image": "/src/assets/images/colosseum_chevilly_1794289493620.jpg",
+      "features": [
+        "Altar Kayu Natural",
+        "Sound System Outdoor",
+        "Kamar Pengantin Gratis",
+        "Area Parkir Luas & Valet"
+      ]
+    },
+    {
+      "id": "glasshouse-wedding",
+      "name": "Glasshouse & Pavilion Wedding Venue",
+      "category": "wedding",
+      "categoryLabel": "Wedding & Social",
+      "capacity": "200 - 500 Tamu Undangan",
+      "hours": "09:00 - 22:00 WIB",
+      "priceNote": "Paket Mulai Rp 35.000.000",
+      "description": "Pavilion dinding kaca elegan dengan panorama 360 derajat pegunungan, menghadirkan kemewahan modern bercampur keasrian alam.",
+      "image": "/src/assets/images/dining_summit_bistro_1794216168611.jpg",
+      "features": [
+        "Struktur Kaca Mewah (AC)",
+        "Ruang Rias & VIP Holding",
+        "Pencahayaan Artistik",
+        "Bebas Khawatir Cuaca Hujan"
+      ]
+    },
+    {
+      "id": "gathering-package",
+      "name": "Corporate Gathering & Gala Dinner Package",
+      "category": "wedding",
+      "categoryLabel": "Wedding & Social",
+      "capacity": "100 - 1.000 Tamu",
+      "hours": "Siang / Malam",
+      "priceNote": "Mulai Rp 185.000 / pax",
+      "description": "Paket perhelatan akbar gathering instansi, reuni sekolah, gala dinner perusahaan, dilengkapi panggung hiburan dan api unggun.",
+      "image": "/src/assets/images/utv_atv_chevilly_1794289555220.jpg",
+      "features": [
+        "Panggung Hiburan & Audio",
+        "Prasmanan Makanan Lengkap",
+        "Fasilitas Api Unggun Malam",
+        "Fun Games & MC Guide"
+      ]
+    }
+  ],
+  "mapLocations": [
+    {
+      "id": "P",
+      "number": "P",
+      "name": "Area Parkir Kendaraan",
+      "category": "fasilitas",
+      "categoryLabel": "Fasilitas Umum",
+      "description": "Kantung parkir luas di pintu masuk, area minishop, dan titik tengah kawasan."
+    },
+    {
+      "id": 1,
+      "number": "1",
+      "name": "Front Office & Lobby",
+      "category": "fasilitas",
+      "categoryLabel": "Fasilitas Umum",
+      "description": "Pusat layanan registrasi check-in, informasi tamu, dan concierge 24 jam."
+    },
+    {
+      "id": 2,
+      "number": "2",
+      "name": "Villa Hortensia",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Vila eksklusif dengan taman asri dan balkon menghadap panorama pegunungan."
+    },
+    {
+      "id": 3,
+      "number": "3",
+      "name": "Villa Rafflesia",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Unit akomodasi privat dengan desain arsitektur hangat dan interior kayu."
+    },
+    {
+      "id": 4,
+      "number": "4",
+      "name": "Villa Jasmine",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Kenyamanan istirahat tenang di dekat gerbang depan dan taman bunga."
+    },
+    {
+      "id": 5,
+      "number": "5",
+      "name": "Rumah Hobbit",
+      "category": "wahana",
+      "categoryLabel": "Wahana & Spot Foto",
+      "description": "Spot foto tematik unik bergaya dongeng di lereng bukit hijau."
+    },
+    {
+      "id": 6,
+      "number": "6",
+      "name": "Villa Marigold",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Vila nyaman bernuansa alam untuk keluarga kecil."
+    },
+    {
+      "id": 7,
+      "number": "7",
+      "name": "Villa Willow",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Kamar elegan di bawah naungan pepohonan rindang dan udara sejuk."
+    },
+    {
+      "id": 8,
+      "number": "8",
+      "name": "Villa Aster",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Chalet nyaman menghadap taman bunga Aster yang berwarna-warni."
+    },
+    {
+      "id": 9,
+      "number": "9",
+      "name": "Villa Asoka",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Penginapan favorit tamu keluarga dengan akses cepat ke jalur utama."
+    },
+    {
+      "id": 10,
+      "number": "10",
+      "name": "Chinatown",
+      "category": "wahana",
+      "categoryLabel": "Wahana & Spot Foto",
+      "description": "Kawasan bertema oriental dengan lentera merah, jembatan naga, dan spot foto spektakuler."
+    },
+    {
+      "id": 11,
+      "number": "11",
+      "name": "Villa Orchid",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Vila anggrek berhawa dingin dengan pemandangan lembah segar."
+    },
+    {
+      "id": 12,
+      "number": "12",
+      "name": "Mushola Utama 1",
+      "category": "fasilitas",
+      "categoryLabel": "Fasilitas Umum",
+      "description": "Tempat ibadah bersih, nyaman, dan sejuk dengan tempat wudhu lengkap."
+    },
+    {
+      "id": 13,
+      "number": "13",
+      "name": "Pujasera 1",
+      "category": "kuliner",
+      "categoryLabel": "Restoran & Kuliner",
+      "description": "Pusat kuliner nusantara dan jajanan hangat pegunungan."
+    },
+    {
+      "id": 14,
+      "number": "14",
+      "name": "Minishop & Toko Mainan",
+      "category": "fasilitas",
+      "categoryLabel": "Fasilitas Umum",
+      "description": "Toko perlengkapan wisata, cenderamata, mainan anak, dan camilan."
+    },
+    {
+      "id": 15,
+      "number": "15",
+      "name": "Kolam Renang Anak (Kids Pool)",
+      "category": "wahana",
+      "categoryLabel": "Wahana Air & Wisata",
+      "description": "Kolam renang dangkal aman khusus balita dan anak-anak dengan seluncuran air."
+    },
+    {
+      "id": 16,
+      "number": "16",
+      "name": "Villa Chrysantemum",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Suaka kamar privat dekat kolam renang dengan panorama indah."
+    },
+    {
+      "id": 17,
+      "number": "17",
+      "name": "Villa Clover",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Akomodasi tenang dengan dekorasi bunga keberuntungan."
+    },
+    {
+      "id": 18,
+      "number": "18",
+      "name": "Villa Bougenville",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Vila keluarga dengan halaman bunga Bougenville yang bermekaran."
+    },
+    {
+      "id": 19,
+      "number": "19",
+      "name": "Villa Rose",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Kamar romantis bernuansa mawar, cocok untuk pasangan berlibur."
+    },
+    {
+      "id": 20,
+      "number": "20",
+      "name": "Loket Tiket Fasilitas",
+      "category": "fasilitas",
+      "categoryLabel": "Fasilitas Umum",
+      "description": "Pusat pembelian tiket wahana, waterpark, dan paket outbound."
+    },
+    {
+      "id": 21,
+      "number": "21",
+      "name": "Aula, Ballroom, King Protea, Flora, Fauna",
+      "category": "meeting",
+      "categoryLabel": "Meeting & Ballroom",
+      "description": "Ruang serbaguna megah untuk gathering kantor, rapat formal, konferensi, dan resepsi megah."
+    },
+    {
+      "id": 22,
+      "number": "22",
+      "name": "Licorice & Ruang Karaoke",
+      "category": "meeting",
+      "categoryLabel": "Hiburan & Meeting",
+      "description": "Fasilitas hiburan musik privat untuk kebersamaan keluarga dan rekan kerja."
+    },
+    {
+      "id": 23,
+      "number": "23",
+      "name": "Villa Cattleya",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Vila premium anggrek Cattleya dengan furnitur elegan."
+    },
+    {
+      "id": 24,
+      "number": "24",
+      "name": "Lavender (Bunk Bed)",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Kamar berkonsep tempat tidur tingkat (bunk bed), ideal untuk rombongan teman dan komunitas."
+    },
+    {
+      "id": 25,
+      "number": "25",
+      "name": "Villa Gladious",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Akomodasi tenang di perbatasan lereng pinus."
+    },
+    {
+      "id": 26,
+      "number": "26",
+      "name": "Tulip & Sunflower",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Kompleks vila kembar bertema bunga ceria dengan udara segar."
+    },
+    {
+      "id": 27,
+      "number": "27",
+      "name": "Villa Magnolia",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Penginapan mewah dengan pencahayaan hangat alami."
+    },
+    {
+      "id": 28,
+      "number": "28",
+      "name": "Violet 1 & 2",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Unit vila berkapasitas fleksibel dekat area resto utama."
+    },
+    {
+      "id": 29,
+      "number": "29",
+      "name": "Vine Restaurant (Estetik Restaurant)",
+      "category": "kuliner",
+      "categoryLabel": "Restoran & Kuliner",
+      "description": "Restoran estetik berpanorama alam terbuka dengan udara sejuk untuk melepas penat dan menikmati sajian lezat."
+    },
+    {
+      "id": 30,
+      "number": "30",
+      "name": "Kolam Renang Dewasa (Adult Pool)",
+      "category": "wahana",
+      "categoryLabel": "Wahana Air & Wisata",
+      "description": "Kolam renang luas dengan air pegunungan segar dan dek santai kursi berjemur."
+    },
+    {
+      "id": 31,
+      "number": "31",
+      "name": "Wedding Deck (Dek Pernikahan Alam)",
+      "category": "meeting",
+      "categoryLabel": "Wedding & Event",
+      "description": "Panggung ikrar suci pernikahan outdoor berlatar belakang bukit hijau dan kabut romantis."
+    },
+    {
+      "id": 32,
+      "number": "32",
+      "name": "Lapangan Outbond 1",
+      "category": "wahana",
+      "categoryLabel": "Aktivitas & Outbound",
+      "description": "Area rumput terbuka luas untuk team building, fun games kelompok, dan gathering."
+    },
+    {
+      "id": 33,
+      "number": "33",
+      "name": "Labirin (Kids Zona Labirin)",
+      "category": "wahana",
+      "categoryLabel": "Wahana & Petualangan",
+      "description": "Labirin tanaman hijau seru untuk menguji kecekatan dan petualangan anak-anak."
+    },
+    {
+      "id": 34,
+      "number": "34",
+      "name": "Pujasera 3",
+      "category": "kuliner",
+      "categoryLabel": "Restoran & Kuliner",
+      "description": "Area bersantap santai menyajikan minuman hangat, kopi, dan makanan ringan."
+    },
+    {
+      "id": 35,
+      "number": "35",
+      "name": "Kolam Renang Pemancingan & Jembatan",
+      "category": "wahana",
+      "categoryLabel": "Wahana Air & Rekreasi",
+      "description": "Danau rekreasi memancing dengan jembatan kayu indah berpanorama pohon rindang."
+    },
+    {
+      "id": 36,
+      "number": "36",
+      "name": "Green House (Laffyette Room)",
+      "category": "meeting",
+      "categoryLabel": "Meeting & Event Room",
+      "description": "Ruang kaca pertemuan bernuansa botani tanaman hias segar, sangat fotogenik."
+    },
+    {
+      "id": 37,
+      "number": "37",
+      "name": "Cherry Blossom (Thematic Lumbung)",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Rumah kayu khas Lumbung bernuansa Jepang modern dengan atap melengkung estetik."
+    },
+    {
+      "id": 38,
+      "number": "38",
+      "name": "Hazel (Rumah Polygon)",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Vila geometris unik polygon dengan kaca panorama menghadap lembah."
+    },
+    {
+      "id": 39,
+      "number": "39",
+      "name": "Pujasera 2 / Pusat Oleh-Oleh",
+      "category": "kuliner",
+      "categoryLabel": "Belanja & Kuliner",
+      "description": "Pusat belanja buah tangan khas Puncak, cenderamata Chevilly, dan jajanan."
+    },
+    {
+      "id": 40,
+      "number": "40",
+      "name": "Villa Edelweiss & Davinci",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Kamar klasik Eropa berpadu sejuknya hawa pegunungan."
+    },
+    {
+      "id": 41,
+      "number": "41",
+      "name": "Villa Dandelions",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Suaka nyaman di jalur tengah perbukitan Chevilly."
+    },
+    {
+      "id": 42,
+      "number": "42",
+      "name": "Peony (Glamping Camp)",
+      "category": "villa",
+      "categoryLabel": "Glamping & Camp",
+      "description": "Tenda glamping mewah mewah dengan ranjang hotel empuk dan sensasi berkemah bintang lima."
+    },
+    {
+      "id": 43,
+      "number": "43",
+      "name": "Jogging Track Lembah Pinus",
+      "category": "wahana",
+      "categoryLabel": "Aktivitas Sehat",
+      "description": "Lintasan lari pagi berkelok melintasi pepohonan cemara berudara murni."
+    },
+    {
+      "id": 44,
+      "number": "44",
+      "name": "Villa Azalea",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Chalet tenang di dekat jalur atraksi petualangan."
+    },
+    {
+      "id": 45,
+      "number": "45",
+      "name": "Le Ciel Cafe & Resto",
+      "category": "kuliner",
+      "categoryLabel": "Cafe & Kuliner",
+      "description": "Cafe estetik \"Langit Biru\" dengan balkon pandang terbuka, kopi pilihan, dan pemandangan pegunungan segar."
+    },
+    {
+      "id": 46,
+      "number": "46",
+      "name": "Aviary (Taman Burung Eksotis)",
+      "category": "wahana",
+      "categoryLabel": "Wahana & Edukasi",
+      "description": "Kubah sangkar raksasa tempat burung warna-warni terbang bebas dan dapat diberi makan langsung."
+    },
+    {
+      "id": 47,
+      "number": "47",
+      "name": "Istana Boneka",
+      "category": "wahana",
+      "categoryLabel": "Wahana & Spot Foto",
+      "description": "Dunia fantasi boneka lucu yang sangat disukai anak-anak dan keluarga."
+    },
+    {
+      "id": 48,
+      "number": "48",
+      "name": "Chevilly Waterpark",
+      "category": "wahana",
+      "categoryLabel": "Wahana Air & Wisata",
+      "description": "Wahana rekreasi air terlengkap dengan kolam ombak santai, ember tumpah, dan seluncuran spiral."
+    },
+    {
+      "id": 49,
+      "number": "49",
+      "name": "The Cove Bar & Resto",
+      "category": "kuliner",
+      "categoryLabel": "Restoran & Cafe",
+      "description": "Lounge semi-outdoor untuk menikmati camilan sore, mocktail segar, dan panorama sunset."
+    },
+    {
+      "id": 50,
+      "number": "50",
+      "name": "Track UTV & ATV Adventure",
+      "category": "wahana",
+      "categoryLabel": "Wahana Petualangan",
+      "description": "Sirkuit off-road menantang menembus tanah bergelombang dan rimbunnya hutan."
+    },
+    {
+      "id": 51,
+      "number": "51",
+      "name": "Mini Golf Greens",
+      "category": "wahana",
+      "categoryLabel": "Wahana & Olahraga",
+      "description": "Lapangan golf mini berliku untuk melatih ketepatan putter bersama keluarga."
+    },
+    {
+      "id": 52,
+      "number": "52",
+      "name": "Playground & Kidspot",
+      "category": "wahana",
+      "categoryLabel": "Taman Bermain Anak",
+      "description": "Wahana ayunan, perosotan, jungkat-jungkit aman beralas rumput empuk."
+    },
+    {
+      "id": 53,
+      "number": "53",
+      "name": "Lapangan Outbond 2",
+      "category": "wahana",
+      "categoryLabel": "Aktivitas & Outbound",
+      "description": "Area outdoor kedua untuk kapasitas kelompok lebih besar hingga ratusan peserta."
+    },
+    {
+      "id": 54,
+      "number": "54",
+      "name": "Villa Lotus",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Vila tenang bernuansa teratai air di lereng barat."
+    },
+    {
+      "id": 55,
+      "number": "55",
+      "name": "Zona Prabayar & Tiket",
+      "category": "fasilitas",
+      "categoryLabel": "Fasilitas Layanan",
+      "description": "Pusat loket isi ulang kartu wahana dan informasi tiket elektronik."
+    },
+    {
+      "id": 56,
+      "number": "56",
+      "name": "Kebun Sayuran Organik (Hydroponic)",
+      "category": "wahana",
+      "categoryLabel": "Wisata Edukasi Tani",
+      "description": "Kebun sayur segar organik ramah lingkungan tempat memetik sayur bersama petani resor."
+    },
+    {
+      "id": 57,
+      "number": "57",
+      "name": "Hotel Tanah Baru Chevilly",
+      "category": "villa",
+      "categoryLabel": "Hotel & Kamar",
+      "description": "Gedung hotel bertingkat dengan kamar modern berfasilitas lengkap."
+    },
+    {
+      "id": 58,
+      "number": "58",
+      "name": "Rainbow Slide Pelangi",
+      "category": "wahana",
+      "categoryLabel": "Wahana Petualangan",
+      "description": "Seluncuran warna-warni panjang menuruni bukit dengan ban luncur seru berkecepatan tinggi."
+    },
+    {
+      "id": 59,
+      "number": "59",
+      "name": "Danau Rekreasi Chevilly",
+      "category": "wahana",
+      "categoryLabel": "Wahana Air Alami",
+      "description": "Danau tenang dengan perahu kayuh dan pemandangan pegunungan yang menyejukkan."
+    },
+    {
+      "id": 60,
+      "number": "60",
+      "name": "Villa Typha Blok A",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Vila privat eksklusif di tepi danau yang tenang."
+    },
+    {
+      "id": 61,
+      "number": "61",
+      "name": "Colosseum Amphitheater",
+      "category": "wahana",
+      "categoryLabel": "Atraksi Arsitektur",
+      "description": "Replika arena megah bergaya Romawi kuno untuk pertunjukan seni, konser mini, dan spot foto spektakuler."
+    },
+    {
+      "id": 62,
+      "number": "62",
+      "name": "Fresh Market Chevilly",
+      "category": "kuliner",
+      "categoryLabel": "Pasar Buah & Sayur",
+      "description": "Gerai buah-buahan segar, madu hutan, dan hasil kebun pegunungan Puncak."
+    },
+    {
+      "id": 63,
+      "number": "63",
+      "name": "Villa Typha Blok B",
+      "category": "villa",
+      "categoryLabel": "Vila & Penginapan",
+      "description": "Vila tepi danau dengan teras pandang santai menikmati semilir angin."
+    },
+    {
+      "id": 64,
+      "number": "64",
+      "name": "Masjid Raya Chevilly",
+      "category": "fasilitas",
+      "categoryLabel": "Fasilitas Ibadah",
+      "description": "Masjid megah berkubah anggun untuk salat berjamaah tamu resor dan pengunjung."
+    }
+  ],
+  "_updatedAt": 1795173322672
 }

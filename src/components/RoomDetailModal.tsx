@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RoomSuite, Currency } from '../types';
 import { formatPrice } from '../utils/formatters';
 import { X, Maximize2, Users, Star, Check, Sparkles, Flame, Shield, ArrowRight, Building2 } from 'lucide-react';
@@ -20,9 +20,17 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
 }) => {
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
 
+  useEffect(() => {
+    setSelectedPhotoIndex(0);
+  }, [room?.id, room?.image]);
+
   if (!isOpen || !room) return null;
 
-  const photos = room.gallery && room.gallery.length > 0 ? room.gallery : [room.image];
+  const extraGallery = Array.isArray(room.gallery)
+    ? room.gallery.filter((img) => Boolean(img && img.trim() && img.trim() !== (room.image || '').trim()))
+    : [];
+  const photos = [room.image, ...extraGallery].filter(Boolean);
+  const activePhoto = photos[selectedPhotoIndex] || room.image;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
@@ -62,7 +70,8 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
           <div className="space-y-2">
             <div className="relative aspect-[16/9] overflow-hidden bg-[#24332c] border border-[#dcd6c8]">
               <img
-                src={photos[selectedPhotoIndex] || room.image}
+                key={activePhoto}
+                src={activePhoto}
                 alt={room.name}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover object-center"
@@ -198,7 +207,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                   </div>
                   <div className="mt-3 pt-3 border-t border-[#f0ebe1]">
                     <div className="font-serif text-lg sm:text-xl font-semibold text-[#182a24] tabular-nums tracking-tight leading-none">
-                      {formatPrice(room.priceSunThursIdr || room.priceIdr, room.priceSunThursUsd || room.priceUsd, currency)}
+                      {formatPrice(room.priceSunThursIdr ?? room.priceIdr, room.priceSunThursUsd ?? room.priceUsd, currency)}
                     </div>
                     <div className="text-[10px] text-[#84948c] mt-1 font-mono">/ malam</div>
                   </div>
@@ -217,7 +226,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                   </div>
                   <div className="mt-3 pt-3 border-t border-[#e9dbb6]">
                     <div className="font-serif text-lg sm:text-xl font-semibold text-[#182a24] tabular-nums tracking-tight leading-none">
-                      {formatPrice(room.priceFridayIdr || Math.round(room.priceIdr * 1.25), room.priceFridayUsd || Math.round(room.priceUsd * 1.25), currency)}
+                      {formatPrice(room.priceFridayIdr ?? Math.round(room.priceIdr * 1.25), room.priceFridayUsd ?? Math.round(room.priceUsd * 1.25), currency)}
                     </div>
                     <div className="text-[10px] text-[#8c7650] mt-1 font-mono">/ malam</div>
                   </div>
@@ -236,7 +245,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
                   </div>
                   <div className="mt-3 pt-3 border-t border-[#2a4339]">
                     <div className="font-serif text-lg sm:text-xl font-semibold text-[#fae7b3] tabular-nums tracking-tight leading-none">
-                      {formatPrice(room.priceSaturdayIdr || Math.round(room.priceIdr * 1.55), room.priceSaturdayUsd || Math.round(room.priceUsd * 1.55), currency)}
+                      {formatPrice(room.priceSaturdayIdr ?? Math.round(room.priceIdr * 1.55), room.priceSaturdayUsd ?? Math.round(room.priceUsd * 1.55), currency)}
                     </div>
                     <div className="text-[10px] text-[#9eb2a8] mt-1 font-mono">/ malam</div>
                   </div>

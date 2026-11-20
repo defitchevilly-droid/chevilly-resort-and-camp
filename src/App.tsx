@@ -9,7 +9,7 @@ import { ChevillyMapSection } from './components/ChevillyMapSection';
 import { HeroSection } from './components/HeroSection';
 import { BookingBar } from './components/BookingBar';
 import { SuitesSection } from './components/SuitesSection';
-import { ToursSection } from './components/ToursSection';
+import { ToursSection, TourCategoryFilter } from './components/ToursSection';
 import { WellnessAndDining } from './components/WellnessAndDining';
 import { Footer } from './components/Footer';
 import { BookingModal } from './components/BookingModal';
@@ -21,9 +21,16 @@ import { EmailDeliveryToast } from './components/EmailDeliveryToast';
 import { InvoiceModal } from './components/InvoiceModal';
 import { WhatsAppFloatingWidget } from './components/WhatsAppFloatingWidget';
 import { AdminPortalModal } from './components/AdminPortalModal';
-import { RoomSuite, TourExperience, Currency, Reservation, VisitorUser, RoomCategoryItem, GuestReview } from './types';
+import { RoomSuite, TourExperience, Currency, Reservation, VisitorUser, RoomCategoryItem, GuestReview, BookingAddOn } from './types';
 import { ROOM_SUITES, TOUR_EXPERIENCES } from './data/resortData';
-import { fetchRooms, fetchTours, fetchFacilities, fetchReservations, fetchCategories, fetchReviews, createReservation, deleteReservation, FacilitiesData } from './services/api';
+import { HeroVideoItem } from './data/heroVideos';
+import { MapLocation } from './components/WellnessAndDining';
+import {
+  fetchRooms, fetchTours, fetchFacilities, fetchReservations, fetchCategories, fetchReviews,
+  fetchResortInfo, fetchHeroVideos, fetchMapLocations, fetchAddOns,
+  createReservation, deleteReservation, fetchLiveUsdRate, FacilitiesData, ResortInfoData
+} from './services/api';
+import { setLiveUsdRate } from './utils/formatters';
 
 const DEFAULT_REVIEWS: GuestReview[] = [
   {
@@ -60,6 +67,23 @@ const DEFAULT_REVIEWS: GuestReview[] = [
 
 export default function App() {
   const [currency, setCurrency] = useState<Currency>('IDR');
+  const [, setUsdRateVersion] = useState(0);
+
+  // Fetch live USD/IDR exchange rate so USD prices always match the current dollar rate while IDR stays fixed
+  useEffect(() => {
+    let active = true;
+    fetchLiveUsdRate().then((info) => {
+      if (active && info?.rate) {
+        setLiveUsdRate(info.rate);
+      }
+    });
+    const handleRateUpdate = () => setUsdRateVersion((v) => v + 1);
+    window.addEventListener('chevilly-usd-rate-updated', handleRateUpdate);
+    return () => {
+      active = false;
+      window.removeEventListener('chevilly-usd-rate-updated', handleRateUpdate);
+    };
+  }, []);
 
   // Visitor Auth user session
   const [currentUser, setCurrentUser] = useState<VisitorUser | null>(() => {
@@ -81,28 +105,8 @@ export default function App() {
   } | null>(null);
   const [activeInvoice, setActiveInvoice] = useState<Reservation | null>(null);
 
-  // Load reservations from localStorage or default
-  const [reservations, setReservations] = useState<Reservation[]>(() => {
-    try {
-      const saved = localStorage.getItem('altovista_reservations');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {
-      // fallback
-    }
-    return [];
-  });
-
-  // Save reservations on changes
-  useEffect(() => {
-    try {
-      localStorage.setItem('altovista_reservations', JSON.stringify(reservations));
-    } catch {
-      // ignore
-    }
-  }, [reservations]);
+  // Reservations loaded strictly from backend database (no localStorage cache)
+  const [reservations, setReservations] = useState<Reservation[]>([]);
 
   const handleLoginSuccess = (user: VisitorUser) => {
     setCurrentUser(user);
@@ -122,59 +126,71 @@ export default function App() {
     }
   };
 
-  // Backend Dynamic Data States
-  const [roomsData, setRoomsData] = useState<RoomSuite[]>(ROOM_SUITES);
+  // Backend Dynamic Data States (always render fixed data strictly from DB, never localStorage cache)
+  const [roomsData, setRoomsData] = useState<RoomSuite[]>([]);
+  const [isRoomsLoading, setIsRoomsLoading] = useState<boolean>(true);
   const [categoriesData, setCategoriesData] = useState<RoomCategoryItem[]>([]);
-  const [toursData, setToursData] = useState<TourExperience[]>(TOUR_EXPERIENCES);
+  const [toursData, setToursData] = useState<TourExperience[]>([]);
+  const [isToursLoading, setIsToursLoading] = useState<boolean>(true);
   const [facilitiesData, setFacilitiesData] = useState<FacilitiesData | null>(null);
-  const [reviewsData, setReviewsData] = useState<GuestReview[]>(() => {
-    try {
-      const saved = localStorage.getItem('chevilly_guest_reviews');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {
-      // fallback
-    }
-    return DEFAULT_REVIEWS;
-  });
+  const [resortInfoData, setResortInfoData] = useState<ResortInfoData | null>(null);
+  const [heroVideosData, setHeroVideosData] = useState<HeroVideoItem[] | null>(null);
+  const [mapLocationsData, setMapLocationsData] = useState<MapLocation[] | null>(null);
+  const [addOnsData, setAddOnsData] = useState<BookingAddOn[]>([]);
+  const [reviewsData, setReviewsData] = useState<GuestReview[]>([]);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
-  // Sync data with backend API
+  // Sync all front-page data directly with backend database (no-cache)
   const loadBackendData = async () => {
     try {
-      const [r, t, f, resList, catsList, revList] = await Promise.all([
+      const [r, t, f, resList, catsList, revList, infoRes, heroVids, mapLocs, addOnsList] = await Promise.all([
         fetchRooms(),
         fetchTours(),
         fetchFacilities(),
         fetchReservations(),
         fetchCategories(),
         fetchReviews(),
+        fetchResortInfo(),
+        fetchHeroVideos<HeroVideoItem>(),
+        fetchMapLocations<MapLocation>(),
+        fetchAddOns(),
       ]);
-      if (Array.isArray(r) && r.length > 0) setRoomsData(r);
-      if (Array.isArray(t) && t.length > 0) setToursData(t);
+
+      if (Array.isArray(r)) {
+        setRoomsData(r);
+        setDetailRoom((prev) => (prev ? r.find((item) => item.id === prev.id) || null : null));
+        setRoomForBooking((prev) => (prev ? r.find((item) => item.id === prev.id) || prev : null));
+      } else {
+        setRoomsData((prev) => (prev.length > 0 ? prev : ROOM_SUITES));
+      }
+
+      if (Array.isArray(t)) {
+        setToursData(t);
+        setDetailTour((prev) => (prev ? t.find((item) => item.id === prev.id) || null : null));
+      } else {
+        setToursData((prev) => (prev.length > 0 ? prev : TOUR_EXPERIENCES));
+      }
+
       if (f) setFacilitiesData(f);
+      if (infoRes) setResortInfoData(infoRes);
       if (Array.isArray(resList)) setReservations(resList);
       if (Array.isArray(revList)) {
         setReviewsData(revList);
-        try {
-          localStorage.setItem('chevilly_guest_reviews', JSON.stringify(revList));
-        } catch {
-          // ignore storage errors
-        }
+      } else {
+        setReviewsData((prev) => (prev.length > 0 ? prev : DEFAULT_REVIEWS));
       }
-      if (Array.isArray(catsList) && catsList.length > 0) {
-        setCategoriesData(catsList);
-        try {
-          localStorage.setItem('chevilly_room_categories', JSON.stringify(catsList));
-          window.dispatchEvent(new CustomEvent('chevilly-categories-updated', { detail: catsList }));
-        } catch {
-          // ignore storage errors
-        }
-      }
+      if (Array.isArray(catsList)) setCategoriesData(catsList);
+      if (Array.isArray(heroVids)) setHeroVideosData(heroVids);
+      if (Array.isArray(mapLocs)) setMapLocationsData(mapLocs);
+      if (Array.isArray(addOnsList)) setAddOnsData(addOnsList);
     } catch (err) {
-      console.warn('Backend sync fallback to static state:', err);
+      console.warn('Backend sync error:', err);
+      setRoomsData((prev) => (prev.length > 0 ? prev : ROOM_SUITES));
+      setToursData((prev) => (prev.length > 0 ? prev : TOUR_EXPERIENCES));
+      setReviewsData((prev) => (prev.length > 0 ? prev : DEFAULT_REVIEWS));
+    } finally {
+      setIsRoomsLoading(false);
+      setIsToursLoading(false);
     }
   };
 
@@ -187,23 +203,10 @@ export default function App() {
         setIsAdminModalOpen(true);
       }
     };
-    const handleReviewsUpdated = () => {
-      try {
-        const saved = localStorage.getItem('chevilly_guest_reviews');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) setReviewsData(parsed);
-        }
-      } catch {
-        // ignore
-      }
-    };
     handleHash();
     window.addEventListener('hashchange', handleHash);
-    window.addEventListener('chevilly-reviews-updated', handleReviewsUpdated);
     return () => {
       window.removeEventListener('hashchange', handleHash);
-      window.removeEventListener('chevilly-reviews-updated', handleReviewsUpdated);
     };
   }, []);
 
@@ -216,6 +219,7 @@ export default function App() {
   const [detailTour, setDetailTour] = useState<TourExperience | null>(null);
   const [isMyBookingsOpen, setIsMyBookingsOpen] = useState(false);
   const [selectedRoomCategory, setSelectedRoomCategory] = useState<string>('all');
+  const [selectedTourCategory, setSelectedTourCategory] = useState<TourCategoryFilter>('all');
 
   const handleSelectRoomCategory = (category: string) => {
     setSelectedRoomCategory(category);
@@ -282,6 +286,9 @@ export default function App() {
       const element = document.getElementById('meeting');
       if (element) element.scrollIntoView({ behavior: 'smooth' });
     } else if (params.type === 'combo') {
+      if (params.category) {
+        setSelectedTourCategory(params.category as TourCategoryFilter);
+      }
       const element = document.getElementById('expeditions');
       if (element) element.scrollIntoView({ behavior: 'smooth' });
     } else {
@@ -358,11 +365,12 @@ export default function App() {
         onLogout={handleLogout}
         onOpenAdmin={() => setIsAdminModalOpen(true)}
         onSelectRoomCategory={handleSelectRoomCategory}
+        categories={categoriesData}
       />
 
       <main className="flex-1">
-        {/* 2. Hero Section with HD Video Carousel */}
-        <HeroSection />
+        {/* 2. Hero Section with HD Video Carousel (Strictly from DB) */}
+        <HeroSection videos={heroVideosData} />
 
         {/* 3. Floating Reservation & Availability Bar — masuk 30px ke bawah video carousel */}
         <section
@@ -372,6 +380,7 @@ export default function App() {
           <div className="max-w-7xl mx-auto w-full bg-[#14231e]/92 backdrop-blur-md border border-[#d4af37]/40 shadow-[0_18px_45px_rgba(0,0,0,0.45)] p-4 sm:p-6">
             <BookingBar
               currency={currency}
+              categories={categoriesData}
               onSearch={handleSearchFromHero}
               onInstantReserve={handleOpenGeneralBooking}
             />
@@ -382,6 +391,7 @@ export default function App() {
         <SuitesSection
           currency={currency}
           rooms={roomsData}
+          isLoading={isRoomsLoading}
           categories={categoriesData}
           onSelectRoom={handleSelectRoom}
           onViewRoomDetails={(room) => setDetailRoom(room)}
@@ -393,14 +403,18 @@ export default function App() {
         <ToursSection
           currency={currency}
           tours={toursData}
+          isLoading={isToursLoading}
           onSelectTour={handleSelectTour}
           onViewTourDetails={(tour) => setDetailTour(tour)}
+          selectedCategory={selectedTourCategory}
+          onSelectCategory={setSelectedTourCategory}
         />
 
         {/* 5. Thermal Springs, Summit Fine Dining & Executive Meeting Bento with Dynamic Backend Data */}
         <WellnessAndDining
           currency={currency}
           facilities={facilitiesData}
+          mapLocations={mapLocationsData}
           onBookSpa={handleBookSpa}
           onBookDining={handleBookDining}
           onBookMeeting={handleOpenGeneralBooking}
@@ -448,7 +462,7 @@ export default function App() {
       </main>
 
       {/* 7. Quiet Luxury Footer & Attribution */}
-      <Footer onOpenAdmin={() => setIsAdminModalOpen(true)} />
+      <Footer resortInfo={resortInfoData} onOpenAdmin={() => setIsAdminModalOpen(true)} />
 
       {/* Interactive Booking Engine Modal */}
       <BookingModal
@@ -458,6 +472,7 @@ export default function App() {
         rooms={roomsData}
         categories={categoriesData}
         tours={toursData}
+        addOns={addOnsData}
         initialRoom={roomForBooking}
         initialTour={tourForBooking}
         onConfirmReservation={handleAddReservation}

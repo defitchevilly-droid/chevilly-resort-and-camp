@@ -97,10 +97,14 @@ export function parseYouTubeVideo(urlOrEmbed?: string): ParsedVideo | null {
   );
   if (ytMatch) {
     const videoId = ytMatch[1];
+    const originParam =
+      typeof window !== 'undefined' && window.location?.origin
+        ? `&origin=${encodeURIComponent(window.location.origin)}`
+        : '';
     return {
       type: 'youtube',
       videoId,
-      embedUrl: `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&vq=hd1080&hd=1`,
+      embedUrl: `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&vq=hd1080&hd=1${originParam}`,
       thumbnailUrl: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
     };
   }
@@ -125,24 +129,9 @@ export function parseYouTubeVideo(urlOrEmbed?: string): ParsedVideo | null {
 }
 
 export const getStoredHeroVideos = (): HeroVideoItem[] => {
-  try {
-    const saved = localStorage.getItem('chevilly_hero_videos');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch (err) {
-    console.error('Failed to parse hero videos from localStorage', err);
-  }
   return INITIAL_HERO_VIDEOS;
 };
 
 export const saveStoredHeroVideos = (videos: HeroVideoItem[]) => {
-  try {
-    localStorage.setItem('chevilly_hero_videos', JSON.stringify(videos));
-    window.dispatchEvent(new CustomEvent('chevilly-hero-videos-updated', { detail: videos }));
-    window.dispatchEvent(new Event('storage'));
-  } catch (err) {
-    console.error('Failed to save hero videos to localStorage', err);
-  }
+  window.dispatchEvent(new CustomEvent('chevilly-hero-videos-updated', { detail: videos }));
 };

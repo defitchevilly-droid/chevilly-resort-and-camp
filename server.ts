@@ -13,6 +13,15 @@ const DB_FILE = path.join(__dirname, 'data', 'database.json');
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// Disable HTTP/proxy caching on all API responses so fresh DB records always load on refresh
+app.use('/api', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  next();
+});
+
 const DEFAULT_BOOKING_ADDONS = [
   {
     id: 'heli-transfer',
@@ -834,21 +843,52 @@ const getDefaultDatabase = () => ({
   reviews: DEFAULT_GUEST_REVIEWS.map((item) => ({ ...item })),
 });
 
+// Shadow mirror outside workspace snapshot so admin runtime edits are never reverted between turns
+const SHADOW_DB_FILE = '/tmp/chevilly_live_db.json';
+
 // Helper functions for reading and writing to persistent JSON
 const readDatabase = () => {
   try {
-    if (!fs.existsSync(DB_FILE)) {
+    let fileDb: any = null;
+    let shadowDb: any = null;
+
+    if (fs.existsSync(DB_FILE)) {
+      try {
+        fileDb = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+      } catch {
+        fileDb = null;
+      }
+    }
+
+    if (fs.existsSync(SHADOW_DB_FILE)) {
+      try {
+        shadowDb = JSON.parse(fs.readFileSync(SHADOW_DB_FILE, 'utf-8'));
+      } catch {
+        shadowDb = null;
+      }
+    }
+
+    if (!fileDb && !shadowDb) {
       const parentDir = path.dirname(DB_FILE);
       if (!fs.existsSync(parentDir)) {
         fs.mkdirSync(parentDir, { recursive: true });
       }
-      const initial = getDefaultDatabase();
+      const initial = { ...getDefaultDatabase(), _updatedAt: Date.now() };
       fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2), 'utf-8');
+      try {
+        fs.writeFileSync(SHADOW_DB_FILE, JSON.stringify(initial, null, 2), 'utf-8');
+      } catch {
+        // ignore shadow write errors
+      }
       return initial;
     }
-    const data = fs.readFileSync(DB_FILE, 'utf-8');
-    const db = JSON.parse(data);
-    let modified = false;
+
+    const fileTs = Number(fileDb?._updatedAt) || 0;
+    const shadowTs = Number(shadowDb?._updatedAt) || 0;
+    const useShadow = Boolean(shadowDb && (!fileDb || shadowTs > fileTs));
+    const db = useShadow ? shadowDb : fileDb;
+    let modified = useShadow;
+
     if (!db.admin) {
       db.admin = {
         username: 'admin',
@@ -887,7 +927,14 @@ const writeDatabase = (data: any) => {
     if (!fs.existsSync(parentDir)) {
       fs.mkdirSync(parentDir, { recursive: true });
     }
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    const payload = { ...data, _updatedAt: Date.now() };
+    const serialized = JSON.stringify(payload, null, 2);
+    fs.writeFileSync(DB_FILE, serialized, 'utf-8');
+    try {
+      fs.writeFileSync(SHADOW_DB_FILE, serialized, 'utf-8');
+    } catch {
+      // ignore shadow write errors
+    }
     return true;
   } catch (err) {
     console.error('Error writing to database file:', err);
@@ -1015,17 +1062,124 @@ app.get('/api/admin/profile', (_req, res) => {
   });
 });
 
-// Static uploads directory
-const uploadsDir = path.join(__dirname, 'public', 'uploads');
+// Static uploads directory outside public/ so Vite build never duplicates uploads into dist/
+const uploadsDir = path.join(__dirname, 'data', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
-app.use('/uploads', express.static(uploadsDir));
+app.use(
+  '/uploads',
+  express.static(uploadsDir, {
+    etag: false,
+    lastModified: false,
+    maxAge: 0,
+    setHeaders: (res) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    },
+  })
+);
+
+// Serve bundled static assets in production as well as development
+const srcAssetsDir = path.join(__dirname, 'src', 'assets');
+if (fs.existsSync(srcAssetsDir)) {
+  app.use('/src/assets', express.static(srcAssetsDir));
+}
+
+// Helper: safely extract filename from a /uploads/... URL (ignores static /src/assets or external URLs)
+function extractUploadFilename(url: unknown): string | null {
+  if (typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!trimmed.startsWith('/uploads/')) return null;
+  const withoutQuery = trimmed.split('?')[0].split('#')[0];
+  const base = path.basename(withoutQuery);
+  if (!base || base === '.' || base === '..') return null;
+  return base;
+}
+
+function collectUploadFilenamesFromValue(val: unknown, out: Set<string>): void {
+  if (!val) return;
+  if (typeof val === 'string') {
+    const fn = extractUploadFilename(val);
+    if (fn) out.add(fn);
+    return;
+  }
+  if (Array.isArray(val)) {
+    for (const item of val) {
+      collectUploadFilenamesFromValue(item, out);
+    }
+    return;
+  }
+  if (typeof val === 'object') {
+    for (const v of Object.values(val as Record<string, unknown>)) {
+      collectUploadFilenamesFromValue(v, out);
+    }
+  }
+}
+
+// Automatically delete old uploaded files in public/uploads/ that are no longer referenced anywhere in DB
+function cleanupUnusedUploadedFiles(candidateUrls: unknown[], db: any): string[] {
+  const candidates = new Set<string>();
+  collectUploadFilenamesFromValue(candidateUrls, candidates);
+  if (candidates.size === 0) return [];
+
+  const stillReferenced = new Set<string>();
+  collectUploadFilenamesFromValue(db, stillReferenced);
+
+  const deleted: string[] = [];
+  for (const filename of candidates) {
+    if (stillReferenced.has(filename)) continue;
+    const fullPath = path.join(uploadsDir, filename);
+    try {
+      if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+        fs.unlinkSync(fullPath);
+        deleted.push(filename);
+      }
+    } catch (err) {
+      console.warn(`Failed to delete old upload file ${filename}:`, err);
+    }
+  }
+  return deleted;
+}
+
+// Normalize primary image + gallery so slot 0 matches image and a replaced old image never lingers in gallery
+function syncImageAndGallery(
+  nextImage: string | undefined,
+  nextGallery: unknown,
+  prevImage?: string,
+  prevGallery?: unknown
+): { image: string; gallery: string[] } {
+  const cleanPrimary = typeof nextImage === 'string' ? nextImage.trim() : '';
+  const imageChanged = Boolean(prevImage && cleanPrimary && cleanPrimary !== prevImage.trim());
+
+  const sourceGallery = Array.isArray(nextGallery)
+    ? nextGallery
+    : Array.isArray(prevGallery)
+      ? prevGallery
+      : [];
+
+  let cleaned = sourceGallery
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter(Boolean);
+
+  if (imageChanged && prevImage) {
+    const oldTrimmed = prevImage.trim();
+    cleaned = cleaned.filter((u) => u !== oldTrimmed);
+  }
+
+  const finalImage = cleanPrimary || cleaned[0] || '';
+  if (finalImage) {
+    cleaned = [finalImage, ...cleaned.filter((u) => u !== finalImage)];
+  }
+
+  return { image: finalImage, gallery: cleaned };
+}
 
 // Image Upload Endpoint (supports Base64 data URLs or binary buffers)
 app.post('/api/upload', (req, res) => {
   try {
-    const { image, filename } = req.body;
+    const { image, filename, previousTempUrl } = req.body;
     if (!image) {
       return res.status(400).json({ success: false, message: 'Tidak ada data gambar yang dikirim' });
     }
@@ -1042,6 +1196,13 @@ app.post('/api/upload', (req, res) => {
 
         fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
         const publicUrl = `/uploads/${uniqueFileName}`;
+
+        // Clean up any unsaved temporary upload that was immediately replaced before saving
+        if (typeof previousTempUrl === 'string' && previousTempUrl.startsWith('/uploads/')) {
+          const db = readDatabase();
+          cleanupUnusedUploadedFiles([previousTempUrl], db);
+        }
+
         return res.json({
           success: true,
           url: publicUrl,
@@ -1096,13 +1257,50 @@ app.get('/api/rooms', (_req, res) => {
 
 app.post('/api/rooms', (req, res) => {
   const db = readDatabase();
+  const toFixedNumber = (val: any, fallback: number): number => {
+    if (val === undefined || val === null || val === '') return fallback;
+    const parsed = Number(val);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+  };
+  const priceSunThursIdr = toFixedNumber(
+    req.body.priceSunThursIdr !== undefined ? req.body.priceSunThursIdr : req.body.priceIdr,
+    850000
+  );
+  const priceFridayIdr = toFixedNumber(req.body.priceFridayIdr, Math.round(priceSunThursIdr * 1.25));
+  const priceSaturdayIdr = toFixedNumber(req.body.priceSaturdayIdr, Math.round(priceSunThursIdr * 1.55));
+  const priceSunThursUsd = toFixedNumber(
+    req.body.priceSunThursUsd !== undefined ? req.body.priceSunThursUsd : req.body.priceUsd,
+    Math.max(1, Math.round(priceSunThursIdr / 16350))
+  );
+  const priceFridayUsd = toFixedNumber(req.body.priceFridayUsd, Math.max(1, Math.round(priceFridayIdr / 16350)));
+  const priceSaturdayUsd = toFixedNumber(req.body.priceSaturdayUsd, Math.max(1, Math.round(priceSaturdayIdr / 16350)));
+
+  const syncedMedia = syncImageAndGallery(
+    req.body.image || '/src/assets/images/suite_alpine_villa_1794216168656.jpg',
+    req.body.gallery
+  );
+  const trimmedName =
+    typeof req.body.name === 'string' && req.body.name.trim()
+      ? req.body.name.trim()
+      : 'Koleksi Villa Baru';
+
   const newRoom = {
     id: req.body.id || `room-${Date.now()}`,
-    name: req.body.name || 'Koleksi Villa Baru',
-    kicker: req.body.kicker || 'Kemewahan Pegunungan Puncak',
+    name: trimmedName,
+    kicker: typeof req.body.kicker === 'string' ? req.body.kicker.trim() : 'Kemewahan Pegunungan Puncak',
     category: req.body.category || 'deluxe',
-    priceIdr: Number(req.body.priceIdr) || 850000,
-    priceUsd: Number(req.body.priceUsd) || 55,
+    priceIdr: priceSunThursIdr,
+    priceUsd: priceSunThursUsd,
+    priceSunThursIdr,
+    priceFridayIdr,
+    priceSaturdayIdr,
+    priceSunThursUsd,
+    priceFridayUsd,
+    priceSaturdayUsd,
+    showName: req.body.showName,
+    showKicker: req.body.showKicker,
+    showPrice: req.body.showPrice,
+    showDescription: req.body.showDescription,
     isAvailable: req.body.isAvailable !== false,
     totalRooms: Number(req.body.totalRooms) || 10,
     area: req.body.area || '75 m²',
@@ -1113,8 +1311,8 @@ app.post('/api/rooms', (req, res) => {
     altitude: req.body.altitude || '2.450 mdpl',
     rating: Number(req.body.rating) || 4.95,
     reviewsCount: Number(req.body.reviewsCount) || 50,
-    image: req.body.image || '/src/assets/images/suite_alpine_villa_1794216168656.jpg',
-    gallery: req.body.gallery || ['/src/assets/images/suite_alpine_villa_1794216168656.jpg'],
+    image: syncedMedia.image,
+    gallery: syncedMedia.gallery,
     features: Array.isArray(req.body.features) ? req.body.features : [req.body.features || 'Balkon panorama gunung'],
     description: req.body.description || 'Chalet suaka pegunungan dengan kenyamanan privat.',
     viewType: req.body.viewType || 'Panorama Pegunungan Puncak',
@@ -1132,20 +1330,86 @@ app.put('/api/rooms/:id', (req, res) => {
   if (index === -1) {
     return res.status(404).json({ success: false, message: 'Kamar tidak ditemukan' });
   }
-  db.rooms[index] = { ...db.rooms[index], ...req.body };
+  const existing = db.rooms[index];
+  const oldMediaCandidates = [existing.image, ...(Array.isArray(existing.gallery) ? existing.gallery : [])];
+
+  const merged = { ...existing, ...req.body };
+
+  // Always persist exact freshly inputted room name (trimmed, no stale fallback)
+  if (typeof req.body.name === 'string') {
+    const trimmed = req.body.name.trim();
+    if (trimmed) {
+      merged.name = trimmed;
+    }
+  }
+  if (typeof req.body.kicker === 'string') {
+    merged.kicker = req.body.kicker.trim();
+  }
+
+  // Sync primary image & gallery so replaced old photo is removed and never lingers
+  if (req.body.image !== undefined || req.body.gallery !== undefined) {
+    const syncedMedia = syncImageAndGallery(
+      req.body.image !== undefined ? req.body.image : existing.image,
+      req.body.gallery !== undefined ? req.body.gallery : existing.gallery,
+      existing.image,
+      existing.gallery
+    );
+    merged.image = syncedMedia.image;
+    merged.gallery = syncedMedia.gallery;
+  }
+
+  // Ensure all fixed IDR prices remain exact numeric values without drifting
+  if (req.body.priceSunThursIdr !== undefined && req.body.priceSunThursIdr !== null) {
+    const fixedSun = Number(req.body.priceSunThursIdr);
+    if (Number.isFinite(fixedSun) && fixedSun >= 0) {
+      merged.priceSunThursIdr = fixedSun;
+      merged.priceIdr = fixedSun;
+    }
+  } else if (req.body.priceIdr !== undefined && req.body.priceIdr !== null) {
+    const fixedBase = Number(req.body.priceIdr);
+    if (Number.isFinite(fixedBase) && fixedBase >= 0) {
+      merged.priceIdr = fixedBase;
+      if (merged.priceSunThursIdr === undefined) {
+        merged.priceSunThursIdr = fixedBase;
+      }
+    }
+  }
+  if (req.body.priceFridayIdr !== undefined && req.body.priceFridayIdr !== null) {
+    const fixedFri = Number(req.body.priceFridayIdr);
+    if (Number.isFinite(fixedFri) && fixedFri >= 0) {
+      merged.priceFridayIdr = fixedFri;
+    }
+  }
+  if (req.body.priceSaturdayIdr !== undefined && req.body.priceSaturdayIdr !== null) {
+    const fixedSat = Number(req.body.priceSaturdayIdr);
+    if (Number.isFinite(fixedSat) && fixedSat >= 0) {
+      merged.priceSaturdayIdr = fixedSat;
+    }
+  }
+
+  db.rooms[index] = merged;
   writeDatabase(db);
+
+  // Automatically delete replaced old uploaded photo files from public/uploads/
+  cleanupUnusedUploadedFiles(oldMediaCandidates, db);
+
   res.json({ success: true, message: 'Data kamar berhasil diperbarui', data: db.rooms[index] });
 });
 
 app.delete('/api/rooms/:id', (req, res) => {
   const { id } = req.params;
   const db = readDatabase();
-  const initialLen = db.rooms.length;
-  db.rooms = db.rooms.filter((r: any) => r.id !== id);
-  if (db.rooms.length === initialLen) {
+  const target = db.rooms.find((r: any) => r.id === id);
+  if (!target) {
     return res.status(404).json({ success: false, message: 'Kamar tidak ditemukan' });
   }
+  const oldMediaCandidates = [target.image, ...(Array.isArray(target.gallery) ? target.gallery : [])];
+  db.rooms = db.rooms.filter((r: any) => r.id !== id);
   writeDatabase(db);
+
+  // Automatically delete uploaded photos belonging to the deleted room if unused
+  cleanupUnusedUploadedFiles(oldMediaCandidates, db);
+
   res.json({ success: true, message: 'Kamar berhasil dihapus' });
 });
 
@@ -1213,20 +1477,46 @@ app.put('/api/tours/:id', (req, res) => {
   if (index === -1) {
     return res.status(404).json({ success: false, message: 'Wahana tidak ditemukan' });
   }
-  db.tours[index] = { ...db.tours[index], ...req.body };
+  const existing = db.tours[index];
+  const oldMediaCandidates = [existing.image, ...(Array.isArray(existing.gallery) ? existing.gallery : [])];
+  const merged = { ...existing, ...req.body };
+
+  if (typeof req.body.name === 'string' && req.body.name.trim()) {
+    merged.name = req.body.name.trim();
+  }
+
+  if (req.body.image !== undefined || req.body.gallery !== undefined) {
+    const syncedMedia = syncImageAndGallery(
+      req.body.image !== undefined ? req.body.image : existing.image,
+      req.body.gallery !== undefined ? req.body.gallery : existing.gallery,
+      existing.image,
+      existing.gallery
+    );
+    merged.image = syncedMedia.image;
+    merged.gallery = syncedMedia.gallery;
+  }
+
+  db.tours[index] = merged;
   writeDatabase(db);
+
+  cleanupUnusedUploadedFiles(oldMediaCandidates, db);
+
   res.json({ success: true, message: 'Data wahana berhasil diperbarui', data: db.tours[index] });
 });
 
 app.delete('/api/tours/:id', (req, res) => {
   const { id } = req.params;
   const db = readDatabase();
-  const initialLen = db.tours.length;
-  db.tours = db.tours.filter((t: any) => t.id !== id);
-  if (db.tours.length === initialLen) {
+  const target = db.tours.find((t: any) => t.id === id);
+  if (!target) {
     return res.status(404).json({ success: false, message: 'Wahana tidak ditemukan' });
   }
+  const oldMediaCandidates = [target.image, ...(Array.isArray(target.gallery) ? target.gallery : [])];
+  db.tours = db.tours.filter((t: any) => t.id !== id);
   writeDatabase(db);
+
+  cleanupUnusedUploadedFiles(oldMediaCandidates, db);
+
   res.json({ success: true, message: 'Wahana berhasil dihapus' });
 });
 
@@ -1418,7 +1708,149 @@ app.delete('/api/reviews/:id', (req, res) => {
   res.json({ success: true, message: 'Ulasan tamu berhasil dihapus' });
 });
 
-// 6. RESET TO DEFAULTS
+// 5d. HERO VIDEOS (HD CAROUSEL — PERSISTED IN DATABASE)
+app.get('/api/hero-videos', (_req, res) => {
+  const db = readDatabase();
+  res.json({ success: true, data: Array.isArray(db.heroVideos) ? db.heroVideos : null });
+});
+
+app.put('/api/hero-videos', (req, res) => {
+  const db = readDatabase();
+  const payload = Array.isArray(req.body) ? req.body : req.body?.videos;
+  if (!Array.isArray(payload)) {
+    return res.status(400).json({ success: false, message: 'Format daftar video hero tidak valid' });
+  }
+  const oldMedia = Array.isArray(db.heroVideos) ? db.heroVideos : [];
+  db.heroVideos = payload;
+  writeDatabase(db);
+  cleanupUnusedUploadedFiles([oldMedia], db);
+  res.json({ success: true, message: 'Daftar video hero berhasil disimpan ke database', data: db.heroVideos });
+});
+
+// 5e. MAP LOCATIONS / 64 TITIK KAWASAN & POPUP DETAIL (PERSISTED IN DATABASE)
+app.get('/api/map-locations', (_req, res) => {
+  const db = readDatabase();
+  res.json({ success: true, data: Array.isArray(db.mapLocations) ? db.mapLocations : null });
+});
+
+app.put('/api/map-locations', (req, res) => {
+  const db = readDatabase();
+  const payload = Array.isArray(req.body) ? req.body : req.body?.locations;
+  if (!Array.isArray(payload)) {
+    return res.status(400).json({ success: false, message: 'Format daftar titik kawasan tidak valid' });
+  }
+  const oldMedia = Array.isArray(db.mapLocations) ? db.mapLocations : [];
+  db.mapLocations = payload;
+  writeDatabase(db);
+  cleanupUnusedUploadedFiles([oldMedia], db);
+  res.json({ success: true, message: 'Data titik kawasan berhasil disimpan ke database', data: db.mapLocations });
+});
+
+// 5f. RESTO, MEETING & WEDDING VENUES (PERSISTED IN DATABASE)
+app.get('/api/venues', (_req, res) => {
+  const db = readDatabase();
+  res.json({ success: true, data: Array.isArray(db.venues) ? db.venues : null });
+});
+
+app.put('/api/venues', (req, res) => {
+  const db = readDatabase();
+  const payload = Array.isArray(req.body) ? req.body : req.body?.venues;
+  if (!Array.isArray(payload)) {
+    return res.status(400).json({ success: false, message: 'Format daftar venue tidak valid' });
+  }
+  const oldMedia = Array.isArray(db.venues) ? db.venues : [];
+  db.venues = payload;
+  writeDatabase(db);
+  cleanupUnusedUploadedFiles([oldMedia], db);
+  res.json({ success: true, message: 'Data Resto, Meeting & Wedding berhasil disimpan ke database', data: db.venues });
+});
+
+// 6. LIVE USD/IDR EXCHANGE RATE (CACHED)
+let cachedExchangeRate: { rate: number; updatedAt: string; source: string; fetchedAtMs: number } | null = null;
+const EXCHANGE_RATE_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+app.get('/api/exchange-rate', async (req, res) => {
+  const forceRefresh = req.query.refresh === '1';
+  const now = Date.now();
+  if (!forceRefresh && cachedExchangeRate && now - cachedExchangeRate.fetchedAtMs < EXCHANGE_RATE_CACHE_TTL_MS) {
+    return res.json({
+      success: true,
+      rate: cachedExchangeRate.rate,
+      updatedAt: cachedExchangeRate.updatedAt,
+      source: cachedExchangeRate.source,
+    });
+  }
+
+  const fetchWithTimeout = async (url: string, ms = 4500) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    try {
+      return await fetch(url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  try {
+    // Primary: Open ExchangeRate API (no key required)
+    const r1 = await fetchWithTimeout('https://open.er-api.com/v6/latest/USD');
+    if (r1.ok) {
+      const json: any = await r1.json();
+      const idr = Number(json?.rates?.IDR);
+      if (Number.isFinite(idr) && idr > 5000 && idr < 50000) {
+        cachedExchangeRate = {
+          rate: Math.round(idr),
+          updatedAt: new Date().toISOString(),
+          source: 'open.er-api.com',
+          fetchedAtMs: now,
+        };
+        return res.json({
+          success: true,
+          rate: cachedExchangeRate.rate,
+          updatedAt: cachedExchangeRate.updatedAt,
+          source: cachedExchangeRate.source,
+        });
+      }
+    }
+  } catch {
+    // try secondary source
+  }
+
+  try {
+    // Secondary: Frankfurter (ECB)
+    const r2 = await fetchWithTimeout('https://api.frankfurter.app/latest?from=USD&to=IDR');
+    if (r2.ok) {
+      const json: any = await r2.json();
+      const idr = Number(json?.rates?.IDR);
+      if (Number.isFinite(idr) && idr > 5000 && idr < 50000) {
+        cachedExchangeRate = {
+          rate: Math.round(idr),
+          updatedAt: new Date().toISOString(),
+          source: 'frankfurter.app',
+          fetchedAtMs: now,
+        };
+        return res.json({
+          success: true,
+          rate: cachedExchangeRate.rate,
+          updatedAt: cachedExchangeRate.updatedAt,
+          source: cachedExchangeRate.source,
+        });
+      }
+    }
+  } catch {
+    // fallback below
+  }
+
+  const fallbackRate = cachedExchangeRate?.rate || 16350;
+  return res.json({
+    success: true,
+    rate: fallbackRate,
+    updatedAt: cachedExchangeRate?.updatedAt || new Date().toISOString(),
+    source: cachedExchangeRate ? `${cachedExchangeRate.source} (cached)` : 'fallback',
+  });
+});
+
+// 7. RESET TO DEFAULTS
 app.post('/api/reset-defaults', (_req, res) => {
   const defaults = getDefaultDatabase();
   writeDatabase(defaults);

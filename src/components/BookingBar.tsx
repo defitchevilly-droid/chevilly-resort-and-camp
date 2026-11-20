@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Calendar, Users, Compass, ArrowRight, Sparkles, BedDouble } from 'lucide-react';
-import { Currency } from '../types';
+import { Currency, RoomCategoryItem } from '../types';
 import { ACCOMMODATION_DROPDOWN_ITEMS } from '../data/resortData';
 
 interface BookingBarProps {
   currency: Currency;
+  categories?: RoomCategoryItem[];
   onSearch: (params: {
     type: 'room' | 'tour' | 'combo';
     category?: string;
@@ -17,56 +18,23 @@ interface BookingBarProps {
 }
 
 export const BookingBar: React.FC<BookingBarProps> = ({
+  categories: dbCategories,
   onSearch,
   onInstantReserve,
 }) => {
   const [activeTab, setActiveTab] = useState<'room' | 'tour' | 'combo'>('room');
   const [roomCategory, setRoomCategory] = useState<string>('all');
-  
-  // Category list synced with Navbar and Admin Portal categories
-  const [categories, setCategories] = useState<{ id: string; label: string }[]>(() => {
-    try {
-      const saved = localStorage.getItem('chevilly_room_categories');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((c: any) => ({
-            id: c.id,
-            label: c.label || c.name || c.id,
-          }));
-        }
-      }
-    } catch {}
-    return ACCOMMODATION_DROPDOWN_ITEMS.map((item) => ({ id: item.id, label: item.label }));
-  });
+  const [fullboardPackage, setFullboardPackage] = useState<string>('fullboard-single');
+  const [tourCategory, setTourCategory] = useState<'all' | 'wahana' | 'spot-foto' | 'adventure' | 'keluarga'>('all');
 
-  useEffect(() => {
-    const syncCategories = () => {
-      try {
-        const saved = localStorage.getItem('chevilly_room_categories');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setCategories(
-              parsed.map((c: any) => ({
-                id: c.id,
-                label: c.label || c.name || c.id,
-              }))
-            );
-            return;
-          }
-        }
-      } catch {}
-      setCategories(ACCOMMODATION_DROPDOWN_ITEMS.map((item) => ({ id: item.id, label: item.label })));
-    };
-
-    window.addEventListener('storage', syncCategories);
-    window.addEventListener('chevilly-categories-updated', syncCategories);
-    return () => {
-      window.removeEventListener('storage', syncCategories);
-      window.removeEventListener('chevilly-categories-updated', syncCategories);
-    };
-  }, []);
+  // Category list strictly synced from backend database
+  const categories =
+    Array.isArray(dbCategories) && dbCategories.length > 0
+      ? dbCategories.map((c) => ({
+          id: c.id,
+          label: c.label || c.name || c.id,
+        }))
+      : ACCOMMODATION_DROPDOWN_ITEMS.map((item) => ({ id: item.id, label: item.label }));
   
   // Default dates: tomorrow and 3 days later
   const today = new Date();
@@ -85,7 +53,7 @@ export const BookingBar: React.FC<BookingBarProps> = ({
     e.preventDefault();
     onSearch({
       type: activeTab,
-      category: activeTab === 'room' ? roomCategory : undefined,
+      category: activeTab === 'room' ? roomCategory : activeTab === 'combo' ? tourCategory : undefined,
       checkIn,
       checkOut,
       adults,
@@ -185,13 +153,18 @@ export const BookingBar: React.FC<BookingBarProps> = ({
           />
         </div>
 
-        {/* Check-Out / Tour Date */}
+        {/* Check-Out / Paket Fullboard / Pilihan Wisata */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] uppercase tracking-wider font-medium text-stone-300 flex items-center gap-1.5">
             {activeTab === 'tour' ? (
               <>
                 <Compass className="w-3.5 h-3.5 text-[#eed492]" />
-                <span>Waktu Pilihan Tur</span>
+                <span>Paket Fullboard</span>
+              </>
+            ) : activeTab === 'combo' ? (
+              <>
+                <Compass className="w-3.5 h-3.5 text-[#eed492]" />
+                <span>Pilihan Wisata</span>
               </>
             ) : (
               <>
@@ -202,11 +175,25 @@ export const BookingBar: React.FC<BookingBarProps> = ({
           </label>
           {activeTab === 'tour' ? (
             <select
+              value={fullboardPackage}
+              onChange={(e) => setFullboardPackage(e.target.value)}
               className="w-full bg-[#182a24]/90 border border-white/25 px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] cursor-pointer"
             >
-              <option value="fajar" className="bg-[#182a24] text-white">Pagi Hari (04:30 WIB - Golden Hour)</option>
-              <option value="siang" className="bg-[#182a24] text-white">Siang Hari (09:00 WIB - Alpine Clear)</option>
-              <option value="senja" className="bg-[#182a24] text-white">Sore / Senja (15:30 WIB - Sunset Ridge)</option>
+              <option value="fullboard-single" className="bg-[#182a24] text-white">Fullboard Single</option>
+              <option value="fullboard-twin" className="bg-[#182a24] text-white">Fullboard Twin</option>
+              <option value="fullboard-triple" className="bg-[#182a24] text-white">Fullboard Triple</option>
+            </select>
+          ) : activeTab === 'combo' ? (
+            <select
+              value={tourCategory}
+              onChange={(e) => setTourCategory(e.target.value as 'all' | 'wahana' | 'spot-foto' | 'adventure' | 'keluarga')}
+              className="w-full bg-[#182a24]/90 border border-white/25 px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] cursor-pointer"
+            >
+              <option value="all" className="bg-[#182a24] text-white">Semua Wisata</option>
+              <option value="wahana" className="bg-[#182a24] text-white">Waterpark</option>
+              <option value="spot-foto" className="bg-[#182a24] text-white">Spot Foto Ikonik</option>
+              <option value="adventure" className="bg-[#182a24] text-white">Adventure &amp; Adrenalin</option>
+              <option value="keluarga" className="bg-[#182a24] text-white">Keluarga &amp; Edukasi</option>
             </select>
           ) : (
             <input

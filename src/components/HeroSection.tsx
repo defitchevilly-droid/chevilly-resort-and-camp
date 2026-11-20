@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-  getStoredHeroVideos,
   parseYouTubeVideo,
   HeroVideoItem,
   INITIAL_HERO_VIDEOS
 } from '../data/heroVideos';
+import { fetchHeroVideos } from '../services/api';
 import {
   ChevronLeft,
   ChevronRight,
@@ -15,25 +15,39 @@ import {
   VolumeX
 } from 'lucide-react';
 
-export const HeroSection: React.FC = () => {
-  const [videos, setVideos] = useState<HeroVideoItem[]>(getStoredHeroVideos);
+interface HeroSectionProps {
+  videos?: HeroVideoItem[] | null;
+}
+
+export const HeroSection: React.FC<HeroSectionProps> = ({ videos: dbVideos }) => {
+  const [videos, setVideos] = useState<HeroVideoItem[]>(() =>
+    Array.isArray(dbVideos) && dbVideos.length > 0 ? dbVideos : INITIAL_HERO_VIDEOS
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
 
-  // Sync videos when updated via Admin Portal
   useEffect(() => {
-    const handleSync = () => {
-      const stored = getStoredHeroVideos();
-      const activeList = stored.filter((v) => v.isActive !== false);
+    if (Array.isArray(dbVideos)) {
+      const activeList = dbVideos.filter((v) => v.isActive !== false);
       setVideos(activeList.length > 0 ? activeList : INITIAL_HERO_VIDEOS);
       setCurrentIndex((prev) => (prev >= activeList.length ? 0 : prev));
+    }
+  }, [dbVideos]);
+
+  // Also refresh directly from backend DB if updated via Admin Portal
+  useEffect(() => {
+    const handleSync = async () => {
+      const fresh = await fetchHeroVideos<HeroVideoItem>();
+      if (Array.isArray(fresh)) {
+        const activeList = fresh.filter((v) => v.isActive !== false);
+        setVideos(activeList.length > 0 ? activeList : INITIAL_HERO_VIDEOS);
+        setCurrentIndex((prev) => (prev >= activeList.length ? 0 : prev));
+      }
     };
 
     window.addEventListener('chevilly-hero-videos-updated', handleSync);
-    window.addEventListener('storage', handleSync);
     return () => {
       window.removeEventListener('chevilly-hero-videos-updated', handleSync);
-      window.removeEventListener('storage', handleSync);
     };
   }, []);
 
@@ -49,10 +63,28 @@ export const HeroSection: React.FC = () => {
     setCurrentIndex((prev) => (prev - 1 + activeVideos.length) % activeVideos.length);
   };
 
+  const requestFullHdQuality = (iframeEl: HTMLIFrameElement | null) => {
+    try {
+      const win = iframeEl?.contentWindow;
+      if (!win) return;
+      win.postMessage(JSON.stringify({ event: 'listening' }), '*');
+      win.postMessage(
+        JSON.stringify({ event: 'command', func: 'setPlaybackQualityRange', args: ['hd1080', 'hd1080'] }),
+        '*'
+      );
+      win.postMessage(
+        JSON.stringify({ event: 'command', func: 'setPlaybackQuality', args: ['hd1080'] }),
+        '*'
+      );
+    } catch {
+      // ignore cross-origin postMessage errors
+    }
+  };
+
   return (
-    <section className="relative min-h-[72vh] sm:min-h-[82vh] lg:min-h-[88vh] flex flex-col justify-between pt-24 sm:pt-28 pb-14 sm:pb-16 px-4 sm:px-8 overflow-hidden bg-black">
+    <section className="relative flex flex-col justify-between pt-[64px] pb-10 sm:min-h-[82vh] lg:min-h-[88vh] sm:pt-28 sm:pb-16 sm:px-8 overflow-hidden bg-black">
       {/* Background HD YouTube Video Embed / Carousel Player */}
-      <div className="absolute inset-0 overflow-hidden z-0">
+      <div className="relative w-full aspect-video sm:aspect-auto sm:absolute sm:inset-0 overflow-hidden z-0 bg-black">
         {parsedVideo ? (
           parsedVideo.type === 'video' ? (
             <video
@@ -62,7 +94,7 @@ export const HeroSection: React.FC = () => {
               loop
               muted={isMuted}
               playsInline
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain sm:object-cover"
             />
           ) : (
             <div className="relative w-full h-full pointer-events-auto overflow-hidden [container-type:size]">
@@ -79,23 +111,11 @@ export const HeroSection: React.FC = () => {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
                 onLoad={(e) => {
-                  try {
-                    const win = e.currentTarget.contentWindow;
-                    if (win) {
-                      win.postMessage(
-                        JSON.stringify({ event: 'command', func: 'setPlaybackQualityRange', args: ['hd1080', 'hd1080'] }),
-                        'https://www.youtube.com'
-                      );
-                      win.postMessage(
-                        JSON.stringify({ event: 'command', func: 'setPlaybackQuality', args: ['hd1080'] }),
-                        'https://www.youtube.com'
-                      );
-                    }
-                  } catch {
-                    // ignore cross-origin postMessage errors
-                  }
+                  const iframeEl = e.currentTarget;
+                  requestFullHdQuality(iframeEl);
+                  window.setTimeout(() => requestFullHdQuality(iframeEl), 1200);
                 }}
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[max(100cqw,177.7778cqh)] h-[max(100cqh,56.25cqw)] border-0"
+                className="absolute inset-0 w-full h-full sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[max(100cqw,177.7778cqh)] sm:h-[max(100cqh,56.25cqw)] border-0"
               />
             </div>
           )
@@ -106,13 +126,13 @@ export const HeroSection: React.FC = () => {
         )}
 
         {/* Lighter, clear Scrim Gradient so video details shine through */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/35 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/20 sm:from-black/75 sm:via-transparent sm:to-black/35 pointer-events-none" />
       </div>
 
       {/* Top Info & Carousel Controls */}
-      <div className="relative z-10 max-w-7xl mx-auto w-full pt-2 sm:pt-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 text-white">
-          <div className="flex items-center gap-2">
+      <div className="absolute top-[74px] left-3 right-3 z-10 pointer-events-none sm:pointer-events-auto sm:relative sm:top-auto sm:left-auto sm:right-auto max-w-7xl mx-auto sm:w-full sm:pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 text-white">
+          <div className="flex items-center gap-2 pointer-events-auto">
             {currentVideo.showBadge !== false && currentVideo.badge && (
               <span className="px-2.5 py-1 bg-[#d4af37] text-[#0d1613] text-[10px] font-mono font-bold uppercase tracking-wider shadow-sm flex items-center gap-1">
                 <Sparkles className="w-3 h-3" />
@@ -129,7 +149,7 @@ export const HeroSection: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsMuted(!isMuted)}
-              className="px-2 py-0.5 bg-black/50 hover:bg-black/75 backdrop-blur-md border border-white/20 text-white/90 text-[10px] font-mono flex items-center gap-1 cursor-pointer transition-colors"
+              className="px-2 py-0.5 bg-black/55 hover:bg-black/75 backdrop-blur-md border border-white/20 text-white/90 text-[10px] font-mono flex items-center gap-1 cursor-pointer transition-colors"
               title={isMuted ? 'Nyalakan Audio Video' : 'Bisukan Video'}
             >
               {isMuted ? <VolumeX className="w-3 h-3 text-rose-300" /> : <Volume2 className="w-3 h-3 text-emerald-300" />}
@@ -139,7 +159,7 @@ export const HeroSection: React.FC = () => {
 
           {/* Carousel Next/Prev Navigation Buttons */}
           {activeVideos.length > 1 && (
-            <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 p-1">
+            <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 p-1 pointer-events-auto">
               <button
                 type="button"
                 onClick={handlePrev}
@@ -183,7 +203,7 @@ export const HeroSection: React.FC = () => {
 
         {/* Video Thumbnail Pills Switcher */}
         {activeVideos.length > 1 && (
-          <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-1 scrollbar-none">
+          <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-1 scrollbar-none pointer-events-auto">
             {activeVideos.map((vid, idx) => (
               <button
                 key={vid.id || idx}

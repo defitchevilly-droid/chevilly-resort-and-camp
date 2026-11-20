@@ -1,23 +1,35 @@
 import React, { useState } from 'react';
-import { TOUR_EXPERIENCES } from '../data/resortData';
 import { TourExperience, Currency } from '../types';
 import { formatPrice } from '../utils/formatters';
 import { Clock, Mountain, ShieldCheck, Compass, ArrowUpRight } from 'lucide-react';
+
+export type TourCategoryFilter = 'all' | 'wahana' | 'spot-foto' | 'adventure' | 'keluarga';
 
 interface ToursSectionProps {
   currency: Currency;
   onSelectTour: (tour: TourExperience) => void;
   onViewTourDetails: (tour: TourExperience) => void;
   tours?: TourExperience[];
+  isLoading?: boolean;
+  selectedCategory?: TourCategoryFilter;
+  onSelectCategory?: (category: TourCategoryFilter) => void;
 }
 
 export const ToursSection: React.FC<ToursSectionProps> = ({
   currency,
   onSelectTour,
   onViewTourDetails,
-  tours = TOUR_EXPERIENCES,
+  tours = [],
+  isLoading = false,
+  selectedCategory,
+  onSelectCategory,
 }) => {
-  const [filter, setFilter] = useState<'all' | 'wahana' | 'spot-foto' | 'adventure' | 'keluarga'>('all');
+  const [internalFilter, setInternalFilter] = useState<TourCategoryFilter>('all');
+  const filter = selectedCategory ?? internalFilter;
+  const setFilter = (cat: TourCategoryFilter) => {
+    setInternalFilter(cat);
+    onSelectCategory?.(cat);
+  };
 
   const filteredTours = tours.filter((tour) => {
     if (filter === 'all') return true;
@@ -99,25 +111,51 @@ export const ToursSection: React.FC<ToursSectionProps> = ({
         </div>
 
         {/* 3-Column Expedition Card Grid */}
+        {isLoading && tours.length === 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
+            {[0, 1, 2].map((idx) => (
+              <div
+                key={idx}
+                className="bg-[#faf9f5] border border-[#ded7cb] overflow-hidden shadow-sm animate-pulse"
+              >
+                <div className="aspect-[4/3] bg-[#e6e1d6]" />
+                <div className="p-6 space-y-3">
+                  <div className="h-3 w-1/3 bg-[#ded7cb]" />
+                  <div className="h-6 w-2/3 bg-[#ded7cb]" />
+                  <div className="h-4 w-full bg-[#ece7dd]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
-          {filteredTours.map((tour) => (
+          {filteredTours.map((tour) => {
+            const primaryImage = tour.image || tour.gallery?.[0] || '';
+            const hoverImage = Array.isArray(tour.gallery)
+              ? tour.gallery.find((img) => Boolean(img && img.trim() && img.trim() !== primaryImage.trim()))
+              : undefined;
+            return (
             <div
               key={tour.id}
               className="group bg-[#faf9f5] border border-[#ded7cb] hover:border-[#b89562] transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md"
             >
               {/* Card Image */}
               <div className="relative aspect-[4/3] overflow-hidden bg-[#e6e1d6]">
-                <img
-                  src={tour.gallery?.[0] || tour.image}
-                  alt={tour.name}
-                  referrerPolicy="no-referrer"
-                  className={`w-full h-full object-cover object-center transition-all duration-700 ease-out ${
-                    tour.gallery?.[1] ? 'group-hover:opacity-0 group-hover:scale-105' : 'group-hover:scale-105'
-                  }`}
-                />
-                {tour.gallery?.[1] && (
+                {primaryImage && (
                   <img
-                    src={tour.gallery[1]}
+                    key={primaryImage}
+                    src={primaryImage}
+                    alt={tour.name}
+                    referrerPolicy="no-referrer"
+                    className={`w-full h-full object-cover object-center transition-all duration-700 ease-out ${
+                      hoverImage ? 'group-hover:opacity-0 group-hover:scale-105' : 'group-hover:scale-105'
+                    }`}
+                  />
+                )}
+                {hoverImage && (
+                  <img
+                    key={hoverImage}
+                    src={hoverImage}
                     alt={`${tour.name} preview`}
                     referrerPolicy="no-referrer"
                     className="absolute inset-0 w-full h-full object-cover object-center opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 ease-out"
@@ -230,8 +268,10 @@ export const ToursSection: React.FC<ToursSectionProps> = ({
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
+        )}
       </div>
     </section>
   );

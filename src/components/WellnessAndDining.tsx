@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, MapPin, Clock, Tag, ExternalLink,
   Share2
 } from 'lucide-react';
-import { FacilitiesData } from '../services/api';
+import { FacilitiesData, fetchMapLocations } from '../services/api';
 
 interface WellnessAndDiningProps {
   currency: Currency;
@@ -16,6 +16,7 @@ interface WellnessAndDiningProps {
   onBookDining: () => void;
   onBookMeeting?: () => void;
   facilities?: FacilitiesData | null;
+  mapLocations?: MapLocation[] | null;
 }
 
 export interface MapLocation {
@@ -42,25 +43,11 @@ export interface MapLocation {
 }
 
 export const getStoredMapLocations = (): MapLocation[] => {
-  try {
-    const saved = localStorage.getItem('chevilly_map_locations');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch (err) {
-    console.error('Failed to load map locations from localStorage', err);
-  }
   return MAP_LOCATIONS;
 };
 
 export const saveStoredMapLocations = (locations: MapLocation[]) => {
-  try {
-    localStorage.setItem('chevilly_map_locations', JSON.stringify(locations));
-    window.dispatchEvent(new CustomEvent('chevilly-map-updated', { detail: locations }));
-  } catch (err) {
-    console.error('Failed to save map locations to localStorage', err);
-  }
+  window.dispatchEvent(new CustomEvent('chevilly-map-updated', { detail: locations }));
 };
 
 const MAP_IMAGE_SRC = '/assets/aistudio/BROSUR_CHEVILLY_LENGKAP_JULI_2026___PETA__s__page-0011_5a0ea07e.jpg';
@@ -368,36 +355,56 @@ export const WellnessAndDining: React.FC<WellnessAndDiningProps> = ({
   onBookDining,
   onBookMeeting,
   facilities,
+  mapLocations: dbMapLocations,
 }) => {
   // Zoom & Pan state
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
-  // Interactive Panoramic Area Map (Zoom & Hover Left-Right Pan) state
+  // Simple Zoomable Area Map state
   const [areaMapZoom, setAreaMapZoom] = useState<number>(1);
-  const [isAreaMapHovering, setIsAreaMapHovering] = useState<boolean>(false);
-  const [areaMapOrigin, setAreaMapOrigin] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
+  const [areaMapPan, setAreaMapPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDraggingAreaMap, setIsDraggingAreaMap] = useState<boolean>(false);
   const [isAreaMapFullscreen, setIsAreaMapFullscreen] = useState<boolean>(false);
+  const areaMapViewportRef = useRef<HTMLDivElement>(null);
+  const areaMapFullscreenRef = useRef<HTMLDivElement>(null);
+  const areaDragStartRef = useRef<{ x: number; y: number; panX: number; panY: number; moved: boolean } | null>(null);
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeLocation, setActiveLocation] = useState<MapLocation | null>(null);
-  const [locations, setLocations] = useState<MapLocation[]>(getStoredMapLocations);
+  const [locations, setLocations] = useState<MapLocation[]>(() =>
+    Array.isArray(dbMapLocations) && dbMapLocations.length > 0 ? dbMapLocations : MAP_LOCATIONS
+  );
 
-  // Sync locations with storage and custom event from admin portal
+  // Always sync map locations directly from backend database prop
   useEffect(() => {
-    const handleMapUpdate = (e: any) => {
-      if (e.detail && Array.isArray(e.detail)) {
+    if (Array.isArray(dbMapLocations) && dbMapLocations.length > 0) {
+      setLocations(dbMapLocations);
+      setActiveLocation((prev) =>
+        prev ? dbMapLocations.find((l) => String(l.id) === String(prev.id)) || null : null
+      );
+      setDetailModalLocation((prev) =>
+        prev ? dbMapLocations.find((l) => String(l.id) === String(prev.id)) || null : null
+      );
+    }
+  }, [dbMapLocations]);
+
+  // Also refresh directly from backend DB when admin updates map locations
+  useEffect(() => {
+    const handleMapUpdate = async (e: any) => {
+      if (e?.detail && Array.isArray(e.detail) && e.detail.length > 0) {
         setLocations(e.detail);
-      } else {
-        setLocations(getStoredMapLocations());
+        return;
+      }
+      const fresh = await fetchMapLocations<MapLocation>();
+      if (Array.isArray(fresh) && fresh.length > 0) {
+        setLocations(fresh);
       }
     };
     window.addEventListener('chevilly-map-updated', handleMapUpdate);
-    window.addEventListener('storage', handleMapUpdate);
     return () => {
       window.removeEventListener('chevilly-map-updated', handleMapUpdate);
-      window.removeEventListener('storage', handleMapUpdate);
     };
   }, []);
 
@@ -481,59 +488,102 @@ export const WellnessAndDining: React.FC<WellnessAndDiningProps> = ({
     setZoomLevel(1);
   };
 
-  // Panoramic Area Map zoom & hover left-right pan handlers
-  const effectiveAreaScale = areaMapZoom > 1 ? areaMapZoom : isAreaMapHovering ? 1.85 : 1;
+  // Close fullscreen map on Escape key
+  useEffect(() => {
+    if (!isAreaMapFullscreen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsAreaMapFullscreen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isAreaMapFullscreen]);
 
-  const handleAreaMapMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    const rawX = (e.clientX - rect.left) / rect.width;
-    const rawY = (e.clientY - rect.top) / rect.height;
-    const normX = Math.max(0, Math.min(100, ((rawX - 0.06) / 0.88) * 100));
-    const normY = Math.max(0, Math.min(100, ((rawY - 0.08) / 0.84) * 100));
-    setAreaMapOrigin({ x: normX, y: normY });
+  // Simple zoom & drag-to-pan handlers
+  const clampAreaPan = (x: number, y: number, zoom: number, rect: DOMRect) => {
+    if (zoom <= 1) return { x: 0, y: 0 };
+    const maxX = ((zoom - 1) * rect.width) / 2;
+    const maxY = ((zoom - 1) * rect.height) / 2;
+    return {
+      x: Math.max(-maxX, Math.min(maxX, x)),
+      y: Math.max(-maxY, Math.min(maxY, y)),
+    };
   };
 
-  const handleAreaMapTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    const touch = e.touches[0];
-    if (!touch) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    const rawX = (touch.clientX - rect.left) / rect.width;
-    const rawY = (touch.clientY - rect.top) / rect.height;
-    const normX = Math.max(0, Math.min(100, ((rawX - 0.06) / 0.88) * 100));
-    const normY = Math.max(0, Math.min(100, ((rawY - 0.08) / 0.84) * 100));
-    setAreaMapOrigin({ x: normX, y: normY });
-    if (areaMapZoom === 1) setAreaMapZoom(1.85);
+  const applyAreaZoom = (nextZoom: number) => {
+    const clamped = Math.max(1, Math.min(4, Number(nextZoom.toFixed(2))));
+    setAreaMapZoom(clamped);
+    if (clamped <= 1) {
+      setAreaMapPan({ x: 0, y: 0 });
+    } else {
+      const containerEl = isAreaMapFullscreen ? areaMapFullscreenRef.current : areaMapViewportRef.current;
+      if (containerEl) {
+        const rect = containerEl.getBoundingClientRect();
+        setAreaMapPan((prev) => clampAreaPan(prev.x, prev.y, clamped, rect));
+      }
+    }
   };
 
   const handleAreaZoomIn = () => {
-    setAreaMapZoom((prev) => Math.min(Number((prev + 0.5).toFixed(2)), 3.5));
+    applyAreaZoom(areaMapZoom + 0.5);
   };
 
   const handleAreaZoomOut = () => {
-    setAreaMapZoom((prev) => Math.max(Number((prev - 0.5).toFixed(2)), 1));
+    applyAreaZoom(areaMapZoom - 0.5);
   };
 
   const handleAreaZoomReset = () => {
     setAreaMapZoom(1);
-    setAreaMapOrigin({ x: 50, y: 50 });
+    setAreaMapPan({ x: 0, y: 0 });
   };
 
-  const handleAreaPanStep = (deltaX: number) => {
-    if (areaMapZoom <= 1) setAreaMapZoom(2);
-    setAreaMapOrigin((prev) => ({
-      x: Math.max(0, Math.min(100, prev.x + deltaX)),
-      y: prev.y,
-    }));
+  const handleAreaWheel = (e: React.WheelEvent<HTMLDivElement>, requireModifier: boolean) => {
+    if (requireModifier && !e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const step = e.deltaY < 0 ? 0.35 : -0.35;
+    applyAreaZoom(areaMapZoom + step);
   };
 
-  const handleAreaMapClickCycleZoom = () => {
-    setAreaMapZoom((prev) => {
-      if (prev < 1.8) return 2;
-      if (prev < 2.8) return 3;
-      return 1;
-    });
+  const handleAreaPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    areaDragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      panX: areaMapPan.x,
+      panY: areaMapPan.y,
+      moved: false,
+    };
+    if (areaMapZoom > 1) setIsDraggingAreaMap(true);
+  };
+
+  const handleAreaPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const start = areaDragStartRef.current;
+    if (!start) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      start.moved = true;
+    }
+    if (areaMapZoom > 1) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setAreaMapPan(clampAreaPan(start.panX + dx, start.panY + dy, areaMapZoom, rect));
+    }
+  };
+
+  const handleAreaPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const start = areaDragStartRef.current;
+    areaDragStartRef.current = null;
+    setIsDraggingAreaMap(false);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    if (start && !start.moved) {
+      setAreaMapZoom((prev) => {
+        const next = prev < 1.8 ? 2 : prev < 2.8 ? 3 : 1;
+        if (next === 1) setAreaMapPan({ x: 0, y: 0 });
+        return next;
+      });
+    }
   };
 
   // Filter locations
@@ -570,150 +620,81 @@ export const WellnessAndDining: React.FC<WellnessAndDiningProps> = ({
         <span id="wellness" className="absolute -top-24" />
         <span id="meeting" className="absolute -top-24" />
 
-        {/* FOTO PETA KAWASAN INTERAKTIF (ZOOM & HOVER KIRI-KANAN) */}
-        <div className="bg-white border border-[#ded7cb] shadow-md overflow-hidden">
-          {/* Toolbar Kontrol Zoom & Geser Kiri-Kanan */}
-          <div className="bg-[#182a24] text-[#f7f5ef] px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5 border-b border-[#d4af37]/30">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-[#d4af37] shrink-0" />
-              <span className="font-serif text-sm font-bold text-white tracking-wide">
-                Peta Ilustrasi Kawasan (Titik 1 – 64)
-              </span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              <button
-                type="button"
-                onClick={() => handleAreaPanStep(-22)}
-                className="px-2 py-1 bg-[#253d34] hover:bg-[#345347] border border-[#d4af37]/30 text-[#fae7b3] flex items-center gap-1 transition-colors cursor-pointer"
-                title="Geser ke Kiri (Area 45 - 64)"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Kiri</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleAreaPanStep(22)}
-                className="px-2 py-1 bg-[#253d34] hover:bg-[#345347] border border-[#d4af37]/30 text-[#fae7b3] flex items-center gap-1 transition-colors cursor-pointer"
-                title="Geser ke Kanan (Area 1 - 25)"
-              >
-                <span className="hidden sm:inline">Kanan</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-
-              <span className="w-px h-4 bg-[#d4af37]/30 mx-0.5 hidden sm:inline-block" />
-
-              <button
-                type="button"
-                onClick={handleAreaZoomOut}
-                className="px-2 py-1 bg-[#253d34] hover:bg-[#345347] border border-[#d4af37]/30 text-[#fae7b3] flex items-center gap-1 transition-colors cursor-pointer"
-                title="Perkecil (-)"
-              >
-                <ZoomOut className="w-3.5 h-3.5" />
-              </button>
-
-              <button
-                type="button"
-                onClick={handleAreaZoomReset}
-                className="px-2.5 py-1 bg-[#253d34] hover:bg-[#345347] border border-[#d4af37]/30 text-[#eed492] font-mono text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
-                title="Reset Zoom & Posisi"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>{Math.round(effectiveAreaScale * 100)}%</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleAreaZoomIn}
-                className="px-2 py-1 bg-[#253d34] hover:bg-[#345347] border border-[#d4af37]/30 text-[#fae7b3] flex items-center gap-1 transition-colors cursor-pointer"
-                title="Perbesar (+)"
-              >
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsAreaMapFullscreen(true)}
-                className="ml-0.5 px-2.5 py-1 bg-[#d4af37] hover:bg-[#fae7b3] text-[#0d1613] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                title="Buka Peta Layar Penuh"
-              >
-                <Maximize2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Layar Penuh</span>
-              </button>
-            </div>
+        {/* PETA KAWASAN SEDERHANA DENGAN ZOOM */}
+        <div className="relative bg-white border border-[#ded7cb] overflow-hidden">
+          {/* Kontrol Zoom Mengambang Sederhana */}
+          <div className="absolute top-3 right-3 z-10 flex items-center bg-white/95 backdrop-blur-sm border border-[#ded7cb] shadow-sm divide-x divide-[#ded7cb]">
+            <button
+              type="button"
+              onClick={handleAreaZoomOut}
+              disabled={areaMapZoom <= 1}
+              className="p-2 text-[#182a24] hover:bg-[#f5f1e8] disabled:opacity-35 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              title="Perkecil"
+              aria-label="Perkecil peta"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleAreaZoomReset}
+              className="px-2.5 py-2 text-[11px] font-mono font-semibold text-[#182a24] hover:bg-[#f5f1e8] transition-colors cursor-pointer min-w-[52px] text-center"
+              title="Reset zoom"
+            >
+              {Math.round(areaMapZoom * 100)}%
+            </button>
+            <button
+              type="button"
+              onClick={handleAreaZoomIn}
+              disabled={areaMapZoom >= 4}
+              className="p-2 text-[#182a24] hover:bg-[#f5f1e8] disabled:opacity-35 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              title="Perbesar"
+              aria-label="Perbesar peta"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAreaMapFullscreen(true)}
+              className="p-2 text-[#182a24] hover:bg-[#f5f1e8] transition-colors cursor-pointer"
+              title="Layar penuh"
+              aria-label="Buka peta layar penuh"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Interactive Zoom & Hover Left-Right Viewport */}
+          {/* Viewport Gambar Peta */}
           <div
-            onMouseEnter={() => setIsAreaMapHovering(true)}
-            onMouseLeave={() => {
-              setIsAreaMapHovering(false);
-              if (areaMapZoom === 1) setAreaMapOrigin({ x: 50, y: 50 });
-            }}
-            onMouseMove={handleAreaMapMouseMove}
-            onTouchMove={handleAreaMapTouchMove}
-            onClick={handleAreaMapClickCycleZoom}
-            className="relative w-full bg-white overflow-hidden select-none cursor-zoom-in group"
-            style={{ touchAction: 'pan-y' }}
+            ref={areaMapViewportRef}
+            onPointerDown={handleAreaPointerDown}
+            onPointerMove={handleAreaPointerMove}
+            onPointerUp={handleAreaPointerUp}
+            onPointerCancel={handleAreaPointerUp}
+            onWheel={(e) => handleAreaWheel(e, true)}
+            className={`w-full bg-white overflow-hidden select-none ${
+              areaMapZoom > 1
+                ? isDraggingAreaMap
+                  ? 'cursor-grabbing'
+                  : 'cursor-grab'
+                : 'cursor-zoom-in'
+            }`}
+            style={{ touchAction: areaMapZoom > 1 ? 'none' : 'pan-y' }}
           >
             <div
               className={`w-full will-change-transform ${
-                isAreaMapHovering ? 'transition-transform duration-150 ease-out' : 'transition-transform duration-300 ease-out'
+                isDraggingAreaMap ? '' : 'transition-transform duration-200 ease-out'
               }`}
               style={{
-                transformOrigin: `${areaMapOrigin.x}% ${areaMapOrigin.y}%`,
-                transform: `scale(${effectiveAreaScale})`,
+                transform: `translate3d(${areaMapPan.x}px, ${areaMapPan.y}px, 0) scale(${areaMapZoom})`,
+                transformOrigin: 'center center',
               }}
             >
               <img
                 src={PANORAMIC_MAP_SRC}
                 alt="Peta Ilustrasi Kawasan Chevilly Resort & Camp Titik 1 sampai 64"
                 draggable={false}
-                className="w-full h-auto max-h-[480px] object-contain mx-auto block px-2 py-4 sm:px-6 sm:py-6"
+                className="w-full h-auto max-h-[520px] object-contain mx-auto block p-3 sm:p-5"
               />
-            </div>
-
-            {/* Subtle Left/Right Edge Pan Buttons */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAreaPanStep(-25);
-              }}
-              aria-label="Geser Peta ke Kiri"
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#182a24]/75 hover:bg-[#182a24] text-[#fae7b3] border border-[#d4af37]/40 flex items-center justify-center shadow-md opacity-70 group-hover:opacity-100 transition-opacity cursor-pointer"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAreaPanStep(25);
-              }}
-              aria-label="Geser Peta ke Kanan"
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#182a24]/75 hover:bg-[#182a24] text-[#fae7b3] border border-[#d4af37]/40 flex items-center justify-center shadow-md opacity-70 group-hover:opacity-100 transition-opacity cursor-pointer"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-
-            {/* Bottom Guide Ribbon */}
-            <div className="bg-[#f5f1e8] border-t border-[#ded7cb] px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#52645c]">
-              <span className="flex items-center gap-1.5">
-                <Eye className="w-3.5 h-3.5 text-[#967d58] shrink-0" />
-                <span>Arahkan kursor kiri–kanan untuk zoom &amp; menjelajah titik 1–64, atau klik peta untuk memperbesar.</span>
-              </span>
-              <div className="flex items-center gap-2 font-mono text-[10px] text-[#73837b]">
-                <span>Kiri (64)</span>
-                <div className="w-20 h-1.5 bg-[#ded7cb] relative overflow-hidden">
-                  <div
-                    className="h-full bg-[#182a24] transition-all duration-100"
-                    style={{ width: '28%', marginLeft: `${Math.min(72, Math.max(0, areaMapOrigin.x * 0.72))}%` }}
-                  />
-                </div>
-                <span>Kanan (1)</span>
-              </div>
             </div>
           </div>
         </div>
@@ -1341,99 +1322,87 @@ export const WellnessAndDining: React.FC<WellnessAndDiningProps> = ({
         </div>
       )}
 
-      {/* 6. FULLSCREEN PANORAMIC AREA MAP MODAL (ZOOM & HOVER KIRI-KANAN) */}
+      {/* 6. FULLSCREEN SIMPLE ZOOMABLE AREA MAP MODAL */}
       {isAreaMapFullscreen && (
-        <div className="fixed inset-0 z-60 bg-black/95 backdrop-blur-xl flex flex-col p-2 sm:p-6 animate-in fade-in duration-200">
-          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-[#101b17] border-b border-[#d4af37]/40 text-white">
-            <div className="flex items-center gap-3">
-              <MapPin className="w-5 h-5 text-[#d4af37]" />
-              <div>
-                <h3 className="font-serif font-bold text-base sm:text-lg text-white">
-                  Peta Ilustrasi Kawasan Chevilly (Titik 1 – 64)
-                </h3>
-                <span className="text-[11px] text-[#eed492] font-mono">
-                  Arahkan kursor kiri–kanan untuk menelusuri kawasan · Klik peta atau tombol +/- untuk zoom
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => handleAreaPanStep(-22)}
-                className="p-2 bg-[#182a24] hover:bg-[#284138] border border-[#d4af37]/40 text-[#fae7b3] cursor-pointer"
-                title="Geser Kiri"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAreaPanStep(22)}
-                className="p-2 bg-[#182a24] hover:bg-[#284138] border border-[#d4af37]/40 text-[#fae7b3] cursor-pointer"
-                title="Geser Kanan"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={handleAreaZoomOut}
-                className="p-2 bg-[#182a24] hover:bg-[#284138] border border-[#d4af37]/40 text-[#fae7b3] cursor-pointer"
-                title="Perkecil (-)"
-              >
-                <ZoomOut className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={handleAreaZoomReset}
-                className="px-2.5 py-2 bg-[#182a24] border border-[#d4af37]/40 text-[#eed492] text-xs font-mono cursor-pointer"
-                title="Reset Zoom"
-              >
-                {Math.round(effectiveAreaScale * 100)}%
-              </button>
-              <button
-                type="button"
-                onClick={handleAreaZoomIn}
-                className="p-2 bg-[#182a24] hover:bg-[#284138] border border-[#d4af37]/40 text-[#fae7b3] cursor-pointer"
-                title="Perbesar (+)"
-              >
-                <ZoomIn className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsAreaMapFullscreen(false)}
-                className="p-2 bg-red-950/70 hover:bg-red-900 border border-red-500/50 text-red-200 transition-colors cursor-pointer ml-1.5"
-                title="Tutup Layar Penuh"
-              >
-                <Minimize2 className="w-4 h-4" />
-              </button>
-            </div>
+        <div
+          className="fixed inset-0 z-60 bg-black/90 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6"
+          onClick={() => setIsAreaMapFullscreen(false)}
+        >
+          {/* Kontrol Zoom Mengambang */}
+          <div
+            className="fixed top-4 right-4 z-10 flex items-center bg-white/95 border border-[#ded7cb] shadow-lg divide-x divide-[#ded7cb]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={handleAreaZoomOut}
+              disabled={areaMapZoom <= 1}
+              className="p-2.5 text-[#182a24] hover:bg-[#f5f1e8] disabled:opacity-35 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              title="Perkecil"
+              aria-label="Perkecil peta"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleAreaZoomReset}
+              className="px-3 py-2.5 text-xs font-mono font-semibold text-[#182a24] hover:bg-[#f5f1e8] transition-colors cursor-pointer min-w-[56px] text-center"
+              title="Reset zoom"
+            >
+              {Math.round(areaMapZoom * 100)}%
+            </button>
+            <button
+              type="button"
+              onClick={handleAreaZoomIn}
+              disabled={areaMapZoom >= 4}
+              className="p-2.5 text-[#182a24] hover:bg-[#f5f1e8] disabled:opacity-35 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              title="Perbesar"
+              aria-label="Perbesar peta"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAreaMapFullscreen(false)}
+              className="p-2.5 text-[#182a24] hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
+              title="Tutup"
+              aria-label="Tutup layar penuh"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
           <div
-            onMouseEnter={() => setIsAreaMapHovering(true)}
-            onMouseLeave={() => {
-              setIsAreaMapHovering(false);
-              if (areaMapZoom === 1) setAreaMapOrigin({ x: 50, y: 50 });
-            }}
-            onMouseMove={handleAreaMapMouseMove}
-            onTouchMove={handleAreaMapTouchMove}
-            onClick={handleAreaMapClickCycleZoom}
-            className="flex-1 bg-white overflow-hidden flex items-center justify-center relative select-none cursor-zoom-in"
+            ref={areaMapFullscreenRef}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={handleAreaPointerDown}
+            onPointerMove={handleAreaPointerMove}
+            onPointerUp={handleAreaPointerUp}
+            onPointerCancel={handleAreaPointerUp}
+            onWheel={(e) => handleAreaWheel(e, false)}
+            className={`w-full h-full bg-white overflow-hidden flex items-center justify-center select-none ${
+              areaMapZoom > 1
+                ? isDraggingAreaMap
+                  ? 'cursor-grabbing'
+                  : 'cursor-grab'
+                : 'cursor-zoom-in'
+            }`}
+            style={{ touchAction: 'none' }}
           >
             <div
               className={`w-full h-full flex items-center justify-center will-change-transform ${
-                isAreaMapHovering ? 'transition-transform duration-150 ease-out' : 'transition-transform duration-300 ease-out'
+                isDraggingAreaMap ? '' : 'transition-transform duration-200 ease-out'
               }`}
               style={{
-                transformOrigin: `${areaMapOrigin.x}% ${areaMapOrigin.y}%`,
-                transform: `scale(${effectiveAreaScale})`,
+                transform: `translate3d(${areaMapPan.x}px, ${areaMapPan.y}px, 0) scale(${areaMapZoom})`,
+                transformOrigin: 'center center',
               }}
             >
               <img
                 src={PANORAMIC_MAP_SRC}
                 alt="Peta Ilustrasi Kawasan Chevilly Layar Penuh"
                 draggable={false}
-                className="w-full h-full max-h-[82vh] object-contain p-4"
+                className="w-full h-full max-h-[88vh] object-contain p-4"
               />
             </div>
           </div>

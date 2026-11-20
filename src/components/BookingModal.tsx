@@ -113,6 +113,7 @@ interface BookingModalProps {
   rooms?: RoomSuite[];
   categories?: RoomCategoryItem[];
   tours?: TourExperience[];
+  addOns?: BookingAddOn[];
   initialRoom?: RoomSuite | null;
   initialTour?: TourExperience | null;
   onConfirmReservation: (reservation: Reservation) => void | Promise<void>;
@@ -127,6 +128,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   rooms,
   categories,
   tours,
+  addOns: dbAddOns,
   initialRoom,
   initialTour,
   onConfirmReservation,
@@ -159,26 +161,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         priceSaturdayUsd: c.priceSaturdayUsd,
       }));
     }
-    try {
-      const saved = localStorage.getItem('chevilly_room_categories');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((c: Partial<RoomCategoryItem> & { id: string }) => ({
-            id: c.id,
-            label: c.label || c.name || c.id,
-            priceSunThursIdr: c.priceSunThursIdr,
-            priceFridayIdr: c.priceFridayIdr,
-            priceSaturdayIdr: c.priceSaturdayIdr,
-            priceSunThursUsd: c.priceSunThursUsd,
-            priceFridayUsd: c.priceFridayUsd,
-            priceSaturdayUsd: c.priceSaturdayUsd,
-          }));
-        }
-      }
-    } catch {
-      // ignore
-    }
     return ACCOMMODATION_DROPDOWN_ITEMS.map((item) => ({ id: item.id, label: item.label }));
   });
 
@@ -199,95 +181,29 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
   }, [categories]);
 
+  // Fasilitas & Layanan Tambahan Puncak Pegunungan (strictly from backend DB, no localStorage cache)
+  const [addOnsList, setAddOnsList] = useState<BookingAddOn[]>(() =>
+    Array.isArray(dbAddOns) && dbAddOns.length > 0 ? dbAddOns : BOOKING_ADDONS
+  );
+
   useEffect(() => {
-    const syncCategories = () => {
-      try {
-        const saved = localStorage.getItem('chevilly_room_categories');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setPublishedCategories(
-              parsed.map((c: Partial<RoomCategoryItem> & { id: string }) => ({
-                id: c.id,
-                label: c.label || c.name || c.id,
-                priceSunThursIdr: c.priceSunThursIdr,
-                priceFridayIdr: c.priceFridayIdr,
-                priceSaturdayIdr: c.priceSaturdayIdr,
-                priceSunThursUsd: c.priceSunThursUsd,
-                priceFridayUsd: c.priceFridayUsd,
-                priceSaturdayUsd: c.priceSaturdayUsd,
-              }))
-            );
-            return;
-          }
-        }
-      } catch {
-        // ignore
-      }
-      setPublishedCategories(
-        ACCOMMODATION_DROPDOWN_ITEMS.map((item) => ({ id: item.id, label: item.label }))
-      );
-    };
-
-    window.addEventListener('storage', syncCategories);
-    window.addEventListener('chevilly-categories-updated', syncCategories);
-    return () => {
-      window.removeEventListener('storage', syncCategories);
-      window.removeEventListener('chevilly-categories-updated', syncCategories);
-    };
-  }, []);
-
-  // Fasilitas & Layanan Tambahan Puncak Pegunungan (synced with Admin CMS & API)
-  const [addOnsList, setAddOnsList] = useState<BookingAddOn[]>(() => {
-    try {
-      const saved = localStorage.getItem('chevilly_booking_addons');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {
-      // ignore
+    if (Array.isArray(dbAddOns) && dbAddOns.length > 0) {
+      setAddOnsList(dbAddOns);
     }
-    return BOOKING_ADDONS;
-  });
+  }, [dbAddOns]);
 
   useEffect(() => {
-    const syncAddOnsFromStorage = () => {
-      try {
-        const saved = localStorage.getItem('chevilly_booking_addons');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            setAddOnsList(parsed);
-            return;
-          }
-        }
-      } catch {
-        // ignore
-      }
-    };
-
+    if (!isOpen) return;
+    let active = true;
     const loadRemoteAddOns = async () => {
       const remote = await fetchAddOns();
-      if (Array.isArray(remote)) {
+      if (active && Array.isArray(remote)) {
         setAddOnsList(remote);
-        try {
-          localStorage.setItem('chevilly_booking_addons', JSON.stringify(remote));
-        } catch {
-          // ignore
-        }
       }
     };
-
-    if (isOpen) {
-      loadRemoteAddOns();
-    }
-
-    window.addEventListener('storage', syncAddOnsFromStorage);
-    window.addEventListener('chevilly-addons-updated', syncAddOnsFromStorage);
+    loadRemoteAddOns();
     return () => {
-      window.removeEventListener('storage', syncAddOnsFromStorage);
-      window.removeEventListener('chevilly-addons-updated', syncAddOnsFromStorage);
+      active = false;
     };
   }, [isOpen]);
 

@@ -8,7 +8,7 @@ import {
   MapPin, Video, Play, Search, UtensilsCrossed, Users, MessageCircle, Heart, Clock,
   CheckSquare, Square, Star
 } from 'lucide-react';
-import { formatPrice, formatDateIndonesian } from '../utils/formatters';
+import { formatPrice, formatDateIndonesian, getLiveUsdRate, setLiveUsdRate, idrToLiveUsd } from '../utils/formatters';
 import { BOOKING_ADDONS } from '../data/resortData';
 import {
   fetchResortInfo, updateResortInfo,
@@ -19,18 +19,21 @@ import {
   fetchReservations, updateReservation, deleteReservation,
   fetchAddOns, createAddOn, updateAddOn, deleteAddOn,
   fetchReviews, createReview, updateReview, deleteReview,
+  fetchHeroVideos, saveHeroVideosToServer,
+  fetchMapLocations, saveMapLocationsToServer,
+  fetchVenues, saveVenuesToServer,
   ResortInfoData, FacilitiesData,
-  loginAdmin, changeAdminPassword, AdminUser, uploadImage
+  loginAdmin, changeAdminPassword, AdminUser, uploadImage, fetchLiveUsdRate
 } from '../services/api';
 import {
   MapLocation,
-  getStoredMapLocations,
+  MAP_LOCATIONS,
   saveStoredMapLocations,
   getLocationDetails
 } from './WellnessAndDining';
 import {
   HeroVideoItem,
-  getStoredHeroVideos,
+  INITIAL_HERO_VIDEOS,
   saveStoredHeroVideos,
   parseYouTubeVideo
 } from '../data/heroVideos';
@@ -191,23 +194,11 @@ export const DEFAULT_VENUE_ITEMS: VenueItem[] = [
 ];
 
 export const getStoredVenues = (): VenueItem[] => {
-  try {
-    const saved = localStorage.getItem('chevilly_resto_meeting_wedding');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {}
   return DEFAULT_VENUE_ITEMS;
 };
 
 export const saveStoredVenues = (items: VenueItem[]) => {
-  try {
-    localStorage.setItem('chevilly_resto_meeting_wedding', JSON.stringify(items));
-    window.dispatchEvent(new CustomEvent('chevilly-venues-updated', { detail: items }));
-  } catch (err) {
-    console.error('Failed to save venues:', err);
-  }
+  window.dispatchEvent(new CustomEvent('chevilly-venues-updated', { detail: items }));
 };
 
 export const ROOM_CATEGORY_PRESETS: Record<
@@ -444,28 +435,48 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   const [detailPreviewActivePhoto, setDetailPreviewActivePhoto] = useState<number>(0);
   const [adminRoomFilter, setAdminRoomFilter] = useState<string>('all');
 
-  // Kurs Dollar (USD) state
-  const [usdExchangeRate, setUsdExchangeRate] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('chevilly_usd_rate');
-      if (saved && !isNaN(Number(saved)) && Number(saved) > 0) return Number(saved);
-    } catch {}
-    return 15500;
-  });
+  // Kurs Dollar (USD) Live state
+  const [usdExchangeRate, setUsdExchangeRate] = useState<number>(() => getLiveUsdRate());
+  const [isRefreshingUsdRate, setIsRefreshingUsdRate] = useState<boolean>(false);
   const [isAutoUsdCalc, setIsAutoUsdCalc] = useState<boolean>(true);
 
-  // Room Categories state
-  const [categories, setCategories] = useState<RoomCategoryItem[]>(() => {
+  const handleRefreshLiveUsdRate = async (force = true) => {
+    setIsRefreshingUsdRate(true);
     try {
-      const saved = localStorage.getItem('chevilly_room_categories');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      const res = await fetchLiveUsdRate(force);
+      if (res?.rate) {
+        setUsdExchangeRate(res.rate);
+        setLiveUsdRate(res.rate);
+        setEditingRoom((prev) => {
+          if (!prev) return prev;
+          const sunIdr = prev.priceSunThursIdr ?? prev.priceIdr ?? 0;
+          const friIdr = prev.priceFridayIdr ?? sunIdr;
+          const satIdr = prev.priceSaturdayIdr ?? sunIdr;
+          return {
+            ...prev,
+            priceUsd: idrToLiveUsd(sunIdr, res.rate),
+            priceSunThursUsd: idrToLiveUsd(sunIdr, res.rate),
+            priceFridayUsd: idrToLiveUsd(friIdr, res.rate),
+            priceSaturdayUsd: idrToLiveUsd(satIdr, res.rate),
+          };
+        });
+        if (force) {
+          showFeedback(`Kurs live diperbarui: 1 USD = Rp ${res.rate.toLocaleString('id-ID')}`);
+        }
       }
-    } catch {
-      // fallback
+    } finally {
+      setIsRefreshingUsdRate(false);
     }
-    return Object.entries(ROOM_CATEGORY_PRESETS).map(([id, p]) => ({
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    handleRefreshLiveUsdRate(false);
+  }, [isOpen]);
+
+  // Room Categories state (strictly loaded from backend DB, no localStorage cache)
+  const [categories, setCategories] = useState<RoomCategoryItem[]>(() =>
+    Object.entries(ROOM_CATEGORY_PRESETS).map(([id, p]) => ({
       id,
       label: p.label,
       name: p.name,
@@ -479,8 +490,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
       priceSaturdayIdr: p.priceSaturdayIdr,
       priceIdr: p.priceIdr,
       priceUsd: p.priceUsd,
-    }));
-  });
+    }))
+  );
   const [editingCategory, setEditingCategory] = useState<RoomCategoryItem | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<RoomCategoryItem | null>(null);
@@ -491,8 +502,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   const [uploadingTourGallerySlot, setUploadingTourGallerySlot] = useState<number | null>(null);
   const [tourDetailPreviewActivePhoto, setTourDetailPreviewActivePhoto] = useState<number>(0);
 
-  // Map Locations (Kawasan) States
-  const [mapLocations, setMapLocations] = useState<MapLocation[]>(getStoredMapLocations);
+  // Map Locations (Kawasan) States (strictly loaded from backend DB)
+  const [mapLocations, setMapLocations] = useState<MapLocation[]>(MAP_LOCATIONS);
   const [editingMapLocation, setEditingMapLocation] = useState<Partial<MapLocation> | null>(null);
   const [isMapLocationModalOpen, setIsMapLocationModalOpen] = useState(false);
   const [isMapDetailEditorOpen, setIsMapDetailEditorOpen] = useState(false);
@@ -501,81 +512,28 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   const [adminMapCategoryFilter, setAdminMapCategoryFilter] = useState<string>('all');
   const [adminMapSearch, setAdminMapSearch] = useState<string>('');
 
-  // Resto, Meeting & Wedding States
-  const [venueItems, setVenueItems] = useState<VenueItem[]>(getStoredVenues);
+  // Resto, Meeting & Wedding States (strictly loaded from backend DB)
+  const [venueItems, setVenueItems] = useState<VenueItem[]>(DEFAULT_VENUE_ITEMS);
   const [editingVenue, setEditingVenue] = useState<Partial<VenueItem> | null>(null);
   const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
   const [venueCategoryFilter, setVenueCategoryFilter] = useState<'all' | 'resto' | 'meeting' | 'wedding'>('all');
   const [venueSearch, setVenueSearch] = useState<string>('');
 
-  // Hero Videos (HD Embed & Carousel) States
-  const [heroVideos, setHeroVideos] = useState<HeroVideoItem[]>(getStoredHeroVideos);
+  // Hero Videos (HD Embed & Carousel) States (strictly loaded from backend DB)
+  const [heroVideos, setHeroVideos] = useState<HeroVideoItem[]>(INITIAL_HERO_VIDEOS);
   const [editingHeroVideo, setEditingHeroVideo] = useState<Partial<HeroVideoItem> | null>(null);
   const [isHeroVideoModalOpen, setIsHeroVideoModalOpen] = useState(false);
   const [heroVideoToDelete, setHeroVideoToDelete] = useState<HeroVideoItem | null>(null);
 
-  // Fasilitas & Layanan Tambahan Puncak Pegunungan (Booking Add-ons) States
-  const [addOns, setAddOns] = useState<BookingAddOn[]>(() => {
-    try {
-      const saved = localStorage.getItem('chevilly_booking_addons');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {
-      // fallback
-    }
-    return BOOKING_ADDONS.map((a) => ({ ...a, isActive: true }));
-  });
+  // Fasilitas & Layanan Tambahan Puncak Pegunungan (Booking Add-ons) States (strictly from backend DB)
+  const [addOns, setAddOns] = useState<BookingAddOn[]>(() => BOOKING_ADDONS.map((a) => ({ ...a, isActive: true })));
   const [editingAddOn, setEditingAddOn] = useState<Partial<BookingAddOn> | null>(null);
   const [isAddOnModalOpen, setIsAddOnModalOpen] = useState(false);
   const [addOnToDelete, setAddOnToDelete] = useState<BookingAddOn | null>(null);
   const [addOnSearch, setAddOnSearch] = useState('');
 
-  // Guest Reviews (Ulasan Para Penjelajah & Tamu Kehormatan) States
-  const [reviews, setReviews] = useState<GuestReview[]>(() => {
-    try {
-      const saved = localStorage.getItem('chevilly_guest_reviews');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {
-      // fallback
-    }
-    return [
-      {
-        id: 'rev-1',
-        authorName: 'Dr. Nadia Wiratama',
-        authorRole: 'Spesialis Bedah & Penggemar Alam · Jakarta',
-        quote:
-          'Menyaksikan kabut pagi membuka panorama puncak alpine dari perapian Presidential Chalet adalah momen paling menenangkan dalam hidup kami. Layanan butler begitu penuh perhatian dan hangat.',
-        rating: 5,
-        isActive: true,
-        createdAt: '2026-10-12',
-      },
-      {
-        id: 'rev-2',
-        authorName: 'Marcus & Helena Vance',
-        authorRole: 'Architectural Conservators · Zurich',
-        quote:
-          'The private glacier ridge trek was world-class. UIAGM certified guides gave us absolute confidence, and the sunrise champagne table above the clouds was unforgettable.',
-        rating: 5,
-        isActive: true,
-        createdAt: '2026-10-20',
-      },
-      {
-        id: 'rev-3',
-        authorName: 'Rayhan Syahputra',
-        authorRole: 'Tech Founder & Alpine Enthusiast · Bandung',
-        quote:
-          'Kolam air panas belerang alami di tepi jurang batu saat senja adalah pengalaman restoratif terbaik. Udara pegunungannya sangat segar dan murni.',
-        rating: 5,
-        isActive: true,
-        createdAt: '2026-11-01',
-      },
-    ];
-  });
+  // Guest Reviews (Ulasan Para Penjelajah & Tamu Kehormatan) States (strictly from backend DB)
+  const [reviews, setReviews] = useState<GuestReview[]>([]);
   const [editingReview, setEditingReview] = useState<Partial<GuestReview> | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [reviewToDelete, setReviewToDelete] = useState<GuestReview | null>(null);
@@ -636,11 +594,19 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
       const res = await uploadImage(dataUrl, file.name);
       const newImageUrl = res.url || dataUrl;
 
-      const updatedRoom: RoomSuite = { ...room, image: newImageUrl };
+      const remainingGallery = (Array.isArray(room.gallery) ? room.gallery : []).filter(
+        (g) => Boolean(g && g.trim() && g.trim() !== (room.image || '').trim() && g.trim() !== newImageUrl.trim())
+      );
+      const updatedRoom: RoomSuite = {
+        ...room,
+        image: newImageUrl,
+        gallery: [newImageUrl, ...remainingGallery],
+      };
       const success = await updateRoom(roomId, updatedRoom);
       if (success) {
         setRooms((prev) => prev.map((r) => (r.id === roomId ? updatedRoom : r)));
-        showFeedback(`Foto kamar "${room.name}" berhasil diganti!`);
+        showFeedback(`Foto kamar "${room.name}" berhasil diperbarui & foto lama dihapus!`);
+        await loadAllData();
         onDataChanged();
       } else {
         showFeedback('Gagal menyimpan foto kamar baru', 'error');
@@ -663,11 +629,19 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
       const res = await uploadImage(dataUrl, file.name);
       const newImageUrl = res.url || dataUrl;
 
-      const updatedTour: TourExperience = { ...tour, image: newImageUrl };
+      const remainingGallery = (Array.isArray(tour.gallery) ? tour.gallery : []).filter(
+        (g) => Boolean(g && g.trim() && g.trim() !== (tour.image || '').trim() && g.trim() !== newImageUrl.trim())
+      );
+      const updatedTour: TourExperience = {
+        ...tour,
+        image: newImageUrl,
+        gallery: [newImageUrl, ...remainingGallery],
+      };
       const success = await updateTour(tourId, updatedTour);
       if (success) {
         setTours((prev) => prev.map((t) => (t.id === tourId ? updatedTour : t)));
-        showFeedback(`Foto wahana "${tour.name}" berhasil diganti!`);
+        showFeedback(`Foto wahana "${tour.name}" berhasil diperbarui & foto lama dihapus!`);
+        await loadAllData();
         onDataChanged();
       } else {
         showFeedback('Gagal menyimpan foto wahana baru', 'error');
@@ -702,19 +676,26 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     setIsModalUploading(true);
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      const res = await uploadImage(dataUrl, file.name);
+      const prevTempUrl =
+        editingRoom.image && editingRoom.image.startsWith('/uploads/') ? editingRoom.image : undefined;
+      const res = await uploadImage(dataUrl, file.name, prevTempUrl);
       const newImageUrl = res.url || dataUrl;
       setEditingRoom((prev) => {
         if (!prev) return prev;
-        const base1 = prev.gallery?.[1] ?? '';
-        const base2 = prev.gallery?.[2] ?? '';
+        const oldPrimary = (prev.image || '').trim();
+        const base1 = (prev.gallery?.[1] ?? '').trim();
+        const base2 = (prev.gallery?.[2] ?? '').trim();
         return {
           ...prev,
           image: newImageUrl,
-          gallery: [newImageUrl, base1, base2],
+          gallery: [
+            newImageUrl,
+            base1 && base1 !== oldPrimary ? base1 : '',
+            base2 && base2 !== oldPrimary ? base2 : '',
+          ],
         };
       });
-      showFeedback('Foto kamar baru berhasil dimuat! Klik Simpan Kamar untuk memperbarui.');
+      showFeedback('Foto kamar baru berhasil dimuat! Klik Simpan Kamar untuk menerapkan & menghapus foto lama.');
     } catch (err) {
       console.error('Error uploading modal room image:', err);
       showFeedback('Gagal memproses gambar', 'error');
@@ -808,29 +789,23 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     }
   };
 
-  const syncAddOnsStorage = (list: BookingAddOn[]) => {
-    try {
-      localStorage.setItem('chevilly_booking_addons', JSON.stringify(list));
-      window.dispatchEvent(new Event('chevilly-addons-updated'));
-    } catch {
-      // ignore storage errors
-    }
-  };
-
-  const syncReviewsStorage = (list: GuestReview[]) => {
-    try {
-      localStorage.setItem('chevilly_guest_reviews', JSON.stringify(list));
-      window.dispatchEvent(new Event('chevilly-reviews-updated'));
-    } catch {
-      // ignore storage errors
-    }
-  };
-
-  // Load all data from Backend API
+  // Load ALL data strictly from Backend Database (no browser localStorage cache)
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [infoRes, facRes, roomsRes, toursRes, resRes, addOnsRes, catsRes, reviewsRes] = await Promise.all([
+      const [
+        infoRes,
+        facRes,
+        roomsRes,
+        toursRes,
+        resRes,
+        addOnsRes,
+        catsRes,
+        reviewsRes,
+        heroVidsRes,
+        mapLocsRes,
+        venuesRes,
+      ] = await Promise.all([
         fetchResortInfo(),
         fetchFacilities(),
         fetchRooms(),
@@ -839,29 +814,21 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
         fetchAddOns(),
         fetchCategories(),
         fetchReviews(),
+        fetchHeroVideos<HeroVideoItem>(),
+        fetchMapLocations<MapLocation>(),
+        fetchVenues<VenueItem>(),
       ]);
       if (infoRes) setResortInfo(infoRes);
       if (facRes) setFacilities(facRes);
-      if (roomsRes) setRooms(roomsRes);
-      if (toursRes) setTours(toursRes);
-      if (resRes) setReservations(resRes);
-      if (Array.isArray(addOnsRes)) {
-        setAddOns(addOnsRes);
-        syncAddOnsStorage(addOnsRes);
-      }
-      if (Array.isArray(reviewsRes)) {
-        setReviews(reviewsRes);
-        syncReviewsStorage(reviewsRes);
-      }
-      if (Array.isArray(catsRes) && catsRes.length > 0) {
-        setCategories(catsRes);
-        try {
-          localStorage.setItem('chevilly_room_categories', JSON.stringify(catsRes));
-          window.dispatchEvent(new CustomEvent('chevilly-categories-updated', { detail: catsRes }));
-        } catch {
-          // ignore storage errors
-        }
-      }
+      if (Array.isArray(roomsRes)) setRooms(roomsRes);
+      if (Array.isArray(toursRes)) setTours(toursRes);
+      if (Array.isArray(resRes)) setReservations(resRes);
+      if (Array.isArray(addOnsRes)) setAddOns(addOnsRes);
+      if (Array.isArray(reviewsRes)) setReviews(reviewsRes);
+      if (Array.isArray(catsRes) && catsRes.length > 0) setCategories(catsRes);
+      if (Array.isArray(heroVidsRes)) setHeroVideos(heroVidsRes);
+      if (Array.isArray(mapLocsRes)) setMapLocations(mapLocsRes);
+      if (Array.isArray(venuesRes)) setVenueItems(venuesRes);
     } catch (err) {
       console.error('Error loading backend data:', err);
     } finally {
@@ -959,17 +926,17 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     const preset = foundCat || ROOM_CATEGORY_PRESETS[defaultCategory] || categories[0] || ROOM_CATEGORY_PRESETS['deluxe'];
     setEditingRoom({
       id: `room-${defaultCategory}-${Date.now()}`,
-      name: preset.name,
-      kicker: preset.kicker,
+      name: '',
+      kicker: '',
       category: defaultCategory,
       priceIdr: preset.priceIdr,
-      priceUsd: preset.priceUsd,
+      priceUsd: idrToLiveUsd(preset.priceSunThursIdr || preset.priceIdr, usdExchangeRate),
       priceSunThursIdr: preset.priceSunThursIdr || preset.priceIdr,
       priceFridayIdr: preset.priceFridayIdr || Math.round(preset.priceIdr * 1.25),
       priceSaturdayIdr: preset.priceSaturdayIdr || Math.round(preset.priceIdr * 1.55),
-      priceSunThursUsd: preset.priceSunThursUsd || preset.priceUsd,
-      priceFridayUsd: preset.priceFridayUsd || Math.round(preset.priceUsd * 1.25),
-      priceSaturdayUsd: preset.priceSaturdayUsd || Math.round(preset.priceUsd * 1.55),
+      priceSunThursUsd: idrToLiveUsd(preset.priceSunThursIdr || preset.priceIdr, usdExchangeRate),
+      priceFridayUsd: idrToLiveUsd(preset.priceFridayIdr || Math.round(preset.priceIdr * 1.25), usdExchangeRate),
+      priceSaturdayUsd: idrToLiveUsd(preset.priceSaturdayIdr || Math.round(preset.priceIdr * 1.55), usdExchangeRate),
       isAvailable: true,
       totalRooms: 10,
       area: preset.area,
@@ -981,11 +948,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
       rating: 4.96,
       reviewsCount: 15,
       image: '/src/assets/images/deluxe_room_resort_1794221424197.jpg',
-      gallery: [
-        '/src/assets/images/deluxe_room_resort_1794221424197.jpg',
-        '/src/assets/images/suite_alpine_villa_1794216168656.jpg',
-        '/src/assets/images/hero_mountain_resort_1794216168533.jpg',
-      ],
+      gallery: ['/src/assets/images/deluxe_room_resort_1794221424197.jpg'],
       viewType: 'Panorama Puncak Pegunungan & Lembah Kabut',
       features: ['Balkon pribadi dengan pemandangan pegunungan', 'Kamar mandi marmer dengan shower air hangat'],
       includedServices: ['Sarapan gourmet hangat untuk 2 tamu', 'Akses gratis area taman & kolam renang Chevilly'],
@@ -998,13 +961,40 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     e.preventDefault();
     if (!editingRoom || !editingRoom.name?.trim()) return;
 
+    const trimmedName = editingRoom.name.trim();
+    const trimmedKicker = (editingRoom.kicker || '').trim();
+    const primaryImage = (editingRoom.image || '').trim();
     const rawGallery = Array.isArray(editingRoom.gallery)
-      ? editingRoom.gallery.map((g) => (g || '').trim())
-      : [editingRoom.image || ''];
-    const cleanedGallery = rawGallery.filter(Boolean);
+      ? editingRoom.gallery.map((g) => (g || '').trim()).filter(Boolean)
+      : [];
+    const syncedGallery = primaryImage
+      ? [primaryImage, ...rawGallery.filter((g) => g !== primaryImage)]
+      : rawGallery;
+
+    // Lock exact fixed IDR values as inputted (never overwrite with multiplier drift)
+    const fixedSunThursIdr = Number(editingRoom.priceSunThursIdr ?? editingRoom.priceIdr ?? 0);
+    const fixedFridayIdr = Number(editingRoom.priceFridayIdr ?? fixedSunThursIdr);
+    const fixedSaturdayIdr = Number(editingRoom.priceSaturdayIdr ?? fixedSunThursIdr);
+
+    // USD values dynamically adjust to the current live USD/IDR exchange rate
+    const liveSunThursUsd = idrToLiveUsd(fixedSunThursIdr, usdExchangeRate);
+    const liveFridayUsd = idrToLiveUsd(fixedFridayIdr, usdExchangeRate);
+    const liveSaturdayUsd = idrToLiveUsd(fixedSaturdayIdr, usdExchangeRate);
+
     const preparedRoom: Partial<RoomSuite> = {
       ...editingRoom,
-      gallery: cleanedGallery.length > 0 ? cleanedGallery : editingRoom.image ? [editingRoom.image] : [],
+      name: trimmedName,
+      kicker: trimmedKicker,
+      image: primaryImage || syncedGallery[0] || '',
+      priceIdr: fixedSunThursIdr,
+      priceSunThursIdr: fixedSunThursIdr,
+      priceFridayIdr: fixedFridayIdr,
+      priceSaturdayIdr: fixedSaturdayIdr,
+      priceUsd: liveSunThursUsd,
+      priceSunThursUsd: liveSunThursUsd,
+      priceFridayUsd: liveFridayUsd,
+      priceSaturdayUsd: liveSaturdayUsd,
+      gallery: syncedGallery,
       features: Array.isArray(editingRoom.features)
         ? editingRoom.features.map((f) => f.trim()).filter(Boolean)
         : [],
@@ -1059,18 +1049,15 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   };
 
   // ==========================================
-  // ROOM CATEGORY CRUD
+  // ROOM CATEGORY CRUD (PERSISTED IN BACKEND DB)
   // ==========================================
-  const saveCategories = (updated: RoomCategoryItem[]) => {
-    setCategories(updated);
-    try {
-      localStorage.setItem('chevilly_room_categories', JSON.stringify(updated));
+  const saveCategories = async (updated: RoomCategoryItem[]): Promise<boolean> => {
+    const ok = await syncCategoriesToServer(updated);
+    if (ok) {
+      setCategories(updated);
       window.dispatchEvent(new CustomEvent('chevilly-categories-updated', { detail: updated }));
-      window.dispatchEvent(new Event('storage'));
-    } catch (err) {
-      console.error('Failed to save room categories:', err);
     }
-    void syncCategoriesToServer(updated);
+    return ok;
   };
 
   const handleOpenAddCategory = () => {
@@ -1108,6 +1095,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     const preparedCategory: RoomCategoryItem = {
       ...editingCategory,
       id: trimmedId,
+      label: editingCategory.label.trim(),
+      name: (editingCategory.name || editingCategory.label).trim(),
       priceIdr: editingCategory.priceSunThursIdr || editingCategory.priceIdr || 850000,
     };
 
@@ -1117,7 +1106,6 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
       updated = [...categories];
       const oldCat = categories[existsIndex];
       updated[existsIndex] = preparedCategory;
-      showFeedback(`Kategori "${preparedCategory.label}" berhasil diperbarui!`);
 
       // If id or label changed, update any existing rooms under this category
       if (oldCat.id !== preparedCategory.id || oldCat.label !== preparedCategory.label) {
@@ -1129,17 +1117,25 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
         for (const r of roomsToUpdate) {
           await updateRoom(r.id, { ...r, category: preparedCategory.id });
         }
-        await loadAllData();
-        onDataChanged();
       }
     } else {
       updated = [...categories, preparedCategory];
-      showFeedback(`Kategori baru "${preparedCategory.label}" berhasil ditambahkan!`);
     }
 
-    saveCategories(updated);
-    setIsCategoryModalOpen(false);
-    setEditingCategory(null);
+    const ok = await saveCategories(updated);
+    if (ok) {
+      showFeedback(
+        existsIndex >= 0
+          ? `Kategori "${preparedCategory.label}" berhasil diperbarui di database!`
+          : `Kategori baru "${preparedCategory.label}" berhasil disimpan ke database!`
+      );
+      setIsCategoryModalOpen(false);
+      setEditingCategory(null);
+      await loadAllData();
+      onDataChanged();
+    } else {
+      showFeedback('Gagal menyimpan kategori ke database', 'error');
+    }
   };
 
   const handleDeleteCategory = (cat: RoomCategoryItem) => {
@@ -1147,14 +1143,19 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     setCategoryToDelete(cat);
   };
 
-  const handleConfirmDeleteCategory = () => {
+  const handleConfirmDeleteCategory = async () => {
     if (!categoryToDelete) return;
     const cat = categoryToDelete;
     const updated = categories.filter((c) => c.id !== cat.id);
-    saveCategories(updated);
-    showFeedback(`Kategori "${cat.label}" berhasil dihapus.`);
-    setCategoryToDelete(null);
-    onDataChanged();
+    const ok = await saveCategories(updated);
+    if (ok) {
+      showFeedback(`Kategori "${cat.label}" berhasil dihapus dari database.`);
+      setCategoryToDelete(null);
+      await loadAllData();
+      onDataChanged();
+    } else {
+      showFeedback('Gagal menghapus kategori dari database', 'error');
+    }
   };
 
   // ==========================================
@@ -1331,9 +1332,9 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     }
   };
 
-  const handleSaveMapLocation = (e: React.FormEvent) => {
+  const handleSaveMapLocation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingMapLocation || !editingMapLocation.name) return;
+    if (!editingMapLocation || !editingMapLocation.name?.trim()) return;
 
     const categoryLabels: Record<string, string> = {
       wahana: 'Wahana & Wisata',
@@ -1362,7 +1363,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     const prepared: MapLocation = {
       id: editingMapLocation.id || `loc-${Date.now()}`,
       number: String(editingMapLocation.number || mapLocations.length + 1),
-      name: editingMapLocation.name,
+      name: editingMapLocation.name.trim(),
       category: (editingMapLocation.category as any) || 'wahana',
       categoryLabel: categoryLabels[editingMapLocation.category || 'wahana'] || 'Kawasan',
       description: editingMapLocation.description || '',
@@ -1386,43 +1387,62 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     if (existsIdx >= 0) {
       updated = [...mapLocations];
       updated[existsIdx] = prepared;
-      showFeedback(`Titik kawasan "${prepared.name}" berhasil diperbarui!`);
     } else {
       updated = [...mapLocations, prepared];
-      showFeedback(`Titik kawasan baru "${prepared.name}" berhasil ditambahkan!`);
     }
 
-    setMapLocations(updated);
-    saveStoredMapLocations(updated);
-    setIsMapDetailEditorOpen(false);
-    setIsMapLocationModalOpen(false);
-    setEditingMapLocation(null);
-    onDataChanged();
+    const ok = await saveMapLocationsToServer(updated);
+    if (ok) {
+      setMapLocations(updated);
+      saveStoredMapLocations(updated);
+      showFeedback(
+        existsIdx >= 0
+          ? `Titik kawasan "${prepared.name}" berhasil disimpan ke database!`
+          : `Titik kawasan baru "${prepared.name}" berhasil ditambahkan ke database!`
+      );
+      setIsMapDetailEditorOpen(false);
+      setIsMapLocationModalOpen(false);
+      setEditingMapLocation(null);
+      await loadAllData();
+      onDataChanged();
+    } else {
+      showFeedback('Gagal menyimpan titik kawasan ke database', 'error');
+    }
   };
 
-  const handleDeleteMapLocation = (loc: MapLocation) => {
+  const handleDeleteMapLocation = async (loc: MapLocation) => {
     if (!window.confirm(`Yakin ingin menghapus titik kawasan "${loc.name}" (Nomor ${loc.number})?`)) return;
     const updated = mapLocations.filter((l) => String(l.id) !== String(loc.id));
-    setMapLocations(updated);
-    saveStoredMapLocations(updated);
-    showFeedback(`Titik kawasan "${loc.name}" berhasil dihapus`);
-    onDataChanged();
+    const ok = await saveMapLocationsToServer(updated);
+    if (ok) {
+      setMapLocations(updated);
+      saveStoredMapLocations(updated);
+      showFeedback(`Titik kawasan "${loc.name}" berhasil dihapus dari database`);
+      await loadAllData();
+      onDataChanged();
+    } else {
+      showFeedback('Gagal menghapus titik kawasan dari database', 'error');
+    }
   };
 
   const handleMapLocationImageUpload = async (file: File) => {
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      const res = await uploadImage(dataUrl, file.name);
+      const prevTempUrl =
+        editingMapLocation?.image && editingMapLocation.image.startsWith('/uploads/')
+          ? editingMapLocation.image
+          : undefined;
+      const res = await uploadImage(dataUrl, file.name, prevTempUrl);
       const uploadedUrl = res.url || dataUrl;
       updateMapLocationImageSlot(0, uploadedUrl);
-      showFeedback('Foto titik kawasan berhasil dimuat!');
+      showFeedback('Foto titik kawasan berhasil dimuat! Klik Simpan untuk menyimpan ke database.');
     } catch {
       showFeedback('Gagal memuat foto', 'error');
     }
   };
 
   // ==========================================
-  // RESTO, MEETING & WEDDING CRUD & WHATSAPP
+  // RESTO, MEETING & WEDDING CRUD & WHATSAPP (PERSISTED IN BACKEND DB)
   // ==========================================
   const getBdeWhatsappUrl = (item: VenueItem) => {
     const bdePhone = (resortInfo?.whatsapp || '6285934544901').replace(/[^0-9]/g, '');
@@ -1452,9 +1472,9 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     setIsVenueModalOpen(true);
   };
 
-  const handleSaveVenue = (e: React.FormEvent) => {
+  const handleSaveVenue = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingVenue || !editingVenue.name) return;
+    if (!editingVenue || !editingVenue.name?.trim()) return;
 
     const categoryLabels: Record<string, string> = {
       resto: 'Resto & Cafe',
@@ -1464,7 +1484,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
 
     const prepared: VenueItem = {
       id: editingVenue.id || `venue-${Date.now()}`,
-      name: editingVenue.name,
+      name: editingVenue.name.trim(),
       category: (editingVenue.category as any) || 'resto',
       categoryLabel: categoryLabels[editingVenue.category || 'resto'] || 'Venue',
       capacity: editingVenue.capacity || '-',
@@ -1485,40 +1505,61 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     if (existsIdx >= 0) {
       updated = [...venueItems];
       updated[existsIdx] = prepared;
-      showFeedback(`"${prepared.name}" berhasil diperbarui!`);
     } else {
       updated = [prepared, ...venueItems];
-      showFeedback(`"${prepared.name}" berhasil ditambahkan!`);
     }
 
-    setVenueItems(updated);
-    saveStoredVenues(updated);
-    setIsVenueModalOpen(false);
-    setEditingVenue(null);
-    onDataChanged();
+    const ok = await saveVenuesToServer(updated);
+    if (ok) {
+      setVenueItems(updated);
+      saveStoredVenues(updated);
+      showFeedback(
+        existsIdx >= 0
+          ? `"${prepared.name}" berhasil diperbarui di database!`
+          : `"${prepared.name}" berhasil disimpan ke database!`
+      );
+      setIsVenueModalOpen(false);
+      setEditingVenue(null);
+      await loadAllData();
+      onDataChanged();
+    } else {
+      showFeedback('Gagal menyimpan data venue ke database', 'error');
+    }
   };
 
-  const handleDeleteVenue = (item: VenueItem) => {
+  const handleDeleteVenue = async (item: VenueItem) => {
     if (!window.confirm(`Yakin ingin menghapus "${item.name}"?`)) return;
     const updated = venueItems.filter((v) => v.id !== item.id);
-    setVenueItems(updated);
-    saveStoredVenues(updated);
-    showFeedback(`"${item.name}" berhasil dihapus`);
-    onDataChanged();
+    const ok = await saveVenuesToServer(updated);
+    if (ok) {
+      setVenueItems(updated);
+      saveStoredVenues(updated);
+      showFeedback(`"${item.name}" berhasil dihapus dari database`);
+      await loadAllData();
+      onDataChanged();
+    } else {
+      showFeedback('Gagal menghapus venue dari database', 'error');
+    }
   };
 
   const handleVenueImageUpload = async (file: File) => {
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      setEditingVenue((prev) => (prev ? { ...prev, image: dataUrl } : prev));
-      showFeedback('Foto venue berhasil dimuat!');
+      const prevTempUrl =
+        editingVenue?.image && editingVenue.image.startsWith('/uploads/')
+          ? editingVenue.image
+          : undefined;
+      const res = await uploadImage(dataUrl, file.name, prevTempUrl);
+      const uploadedUrl = res.url || dataUrl;
+      setEditingVenue((prev) => (prev ? { ...prev, image: uploadedUrl } : prev));
+      showFeedback('Foto venue berhasil diunggah ke server!');
     } catch {
       showFeedback('Gagal memuat foto', 'error');
     }
   };
 
   // ==========================================
-  // HERO VIDEOS CRUD (YouTube HD Carousel)
+  // HERO VIDEOS CRUD (YouTube HD Carousel — PERSISTED IN BACKEND DB)
   // ==========================================
   const handleOpenAddHeroVideo = () => {
     setEditingHeroVideo({
@@ -1548,9 +1589,9 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     setIsHeroVideoModalOpen(true);
   };
 
-  const handleSaveHeroVideo = (e: React.FormEvent) => {
+  const handleSaveHeroVideo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingHeroVideo || !editingHeroVideo.title || !editingHeroVideo.youtubeUrl) {
+    if (!editingHeroVideo || !editingHeroVideo.title?.trim() || !editingHeroVideo.youtubeUrl?.trim()) {
       showFeedback('Mohon isi judul dan link video YouTube / embed', 'error');
       return;
     }
@@ -1575,38 +1616,59 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     if (existsIdx >= 0) {
       updated = [...heroVideos];
       updated[existsIdx] = prepared;
-      showFeedback(`Video "${prepared.title}" berhasil diperbarui!`);
     } else {
       updated = [prepared, ...heroVideos];
-      showFeedback(`Video "${prepared.title}" berhasil ditambahkan ke carousel!`);
     }
 
-    setHeroVideos(updated);
-    saveStoredHeroVideos(updated);
-    setIsHeroVideoModalOpen(false);
-    setEditingHeroVideo(null);
-    onDataChanged();
+    const ok = await saveHeroVideosToServer(updated);
+    if (ok) {
+      setHeroVideos(updated);
+      saveStoredHeroVideos(updated);
+      showFeedback(
+        existsIdx >= 0
+          ? `Video "${prepared.title}" berhasil disimpan ke database!`
+          : `Video "${prepared.title}" berhasil ditambahkan ke database!`
+      );
+      setIsHeroVideoModalOpen(false);
+      setEditingHeroVideo(null);
+      await loadAllData();
+      onDataChanged();
+    } else {
+      showFeedback('Gagal menyimpan video hero ke database', 'error');
+    }
   };
 
-  const handleToggleHeroVideoActive = (vid: HeroVideoItem) => {
+  const handleToggleHeroVideoActive = async (vid: HeroVideoItem) => {
     const updated = heroVideos.map((v) =>
       v.id === vid.id ? { ...v, isActive: !v.isActive } : v
     );
-    setHeroVideos(updated);
-    saveStoredHeroVideos(updated);
-    showFeedback(`Status video "${vid.title}" diubah.`);
-    onDataChanged();
+    const ok = await saveHeroVideosToServer(updated);
+    if (ok) {
+      setHeroVideos(updated);
+      saveStoredHeroVideos(updated);
+      showFeedback(`Status video "${vid.title}" diperbarui di database.`);
+      await loadAllData();
+      onDataChanged();
+    } else {
+      showFeedback('Gagal mengubah status video di database', 'error');
+    }
   };
 
-  const handleConfirmDeleteHeroVideo = () => {
+  const handleConfirmDeleteHeroVideo = async () => {
     if (!heroVideoToDelete) return;
     const vid = heroVideoToDelete;
     const updated = heroVideos.filter((v) => v.id !== vid.id);
-    setHeroVideos(updated);
-    saveStoredHeroVideos(updated);
-    showFeedback(`Video "${vid.title}" berhasil dihapus.`);
-    setHeroVideoToDelete(null);
-    onDataChanged();
+    const ok = await saveHeroVideosToServer(updated);
+    if (ok) {
+      setHeroVideos(updated);
+      saveStoredHeroVideos(updated);
+      showFeedback(`Video "${vid.title}" berhasil dihapus dari database.`);
+      setHeroVideoToDelete(null);
+      await loadAllData();
+      onDataChanged();
+    } else {
+      showFeedback('Gagal menghapus video dari database', 'error');
+    }
   };
 
   // ==========================================
@@ -1668,55 +1730,58 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     const isExisting = addOns.some((a) => a.id === prepared.id);
     if (isExisting) {
       const ok = await updateAddOn(prepared.id, prepared);
-      const updated = addOns.map((a) => (a.id === prepared.id ? prepared : a));
-      setAddOns(updated);
-      syncAddOnsStorage(updated);
-      showFeedback(
-        ok
-          ? `Layanan "${prepared.name}" berhasil diperbarui!`
-          : `Layanan "${prepared.name}" diperbarui secara lokal.`
-      );
+      if (ok) {
+        showFeedback(`Layanan "${prepared.name}" berhasil diperbarui di database!`);
+      } else {
+        showFeedback('Gagal memperbarui layanan di database', 'error');
+        return;
+      }
     } else {
       const created = await createAddOn(prepared);
-      const savedItem = created || prepared;
-      const updated = [...addOns, savedItem];
-      setAddOns(updated);
-      syncAddOnsStorage(updated);
-      showFeedback(`Layanan "${savedItem.name}" berhasil ditambahkan!`);
+      if (created) {
+        showFeedback(`Layanan "${created.name}" berhasil disimpan ke database!`);
+      } else {
+        showFeedback('Gagal menambahkan layanan ke database', 'error');
+        return;
+      }
     }
 
     setIsAddOnModalOpen(false);
     setEditingAddOn(null);
+    await loadAllData();
     onDataChanged();
   };
 
   const handleToggleAddOnActive = async (addon: BookingAddOn) => {
     const nextActive = addon.isActive === false;
-    const updatedItem: BookingAddOn = { ...addon, isActive: nextActive };
-    const updatedList = addOns.map((a) => (a.id === addon.id ? updatedItem : a));
-    setAddOns(updatedList);
-    syncAddOnsStorage(updatedList);
-    await updateAddOn(addon.id, { isActive: nextActive });
-    showFeedback(
-      `Layanan "${addon.name}" ${nextActive ? 'diaktifkan' : 'dinonaktifkan'} pada formulir reservasi.`
-    );
-    onDataChanged();
+    const ok = await updateAddOn(addon.id, { isActive: nextActive });
+    if (ok) {
+      showFeedback(
+        `Layanan "${addon.name}" ${nextActive ? 'diaktifkan' : 'dinonaktifkan'} di database.`
+      );
+      await loadAllData();
+      onDataChanged();
+    } else {
+      showFeedback('Gagal memperbarui status layanan di database', 'error');
+    }
   };
 
   const handleConfirmDeleteAddOn = async () => {
     if (!addOnToDelete) return;
     const target = addOnToDelete;
-    await deleteAddOn(target.id);
-    const updated = addOns.filter((a) => a.id !== target.id);
-    setAddOns(updated);
-    syncAddOnsStorage(updated);
-    setAddOnToDelete(null);
-    showFeedback(`Layanan "${target.name}" berhasil dihapus.`);
-    onDataChanged();
+    const ok = await deleteAddOn(target.id);
+    if (ok) {
+      setAddOnToDelete(null);
+      showFeedback(`Layanan "${target.name}" berhasil dihapus dari database.`);
+      await loadAllData();
+      onDataChanged();
+    } else {
+      showFeedback('Gagal menghapus layanan dari database', 'error');
+    }
   };
 
   // ==========================================
-  // ULASAN PARA PENJELAJAH & TAMU KEHORMATAN CRUD
+  // ULASAN PARA PENJELAJAH & TAMU KEHORMATAN CRUD (PERSISTED IN BACKEND DB)
   // ==========================================
   const handleOpenAddReview = () => {
     setEditingReview({
@@ -1764,51 +1829,54 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     const isExisting = reviews.some((r) => r.id === prepared.id);
     if (isExisting) {
       const ok = await updateReview(prepared.id, prepared);
-      const updated = reviews.map((r) => (r.id === prepared.id ? prepared : r));
-      setReviews(updated);
-      syncReviewsStorage(updated);
-      showFeedback(
-        ok
-          ? `Ulasan dari "${prepared.authorName}" berhasil diperbarui!`
-          : `Ulasan dari "${prepared.authorName}" diperbarui secara lokal.`
-      );
+      if (ok) {
+        showFeedback(`Ulasan dari "${prepared.authorName}" berhasil diperbarui di database!`);
+      } else {
+        showFeedback('Gagal memperbarui ulasan di database', 'error');
+        return;
+      }
     } else {
       const created = await createReview(prepared);
-      const savedItem = created || prepared;
-      const updated = [savedItem, ...reviews];
-      setReviews(updated);
-      syncReviewsStorage(updated);
-      showFeedback(`Ulasan baru dari "${savedItem.authorName}" berhasil ditambahkan!`);
+      if (created) {
+        showFeedback(`Ulasan baru dari "${created.authorName}" berhasil disimpan ke database!`);
+      } else {
+        showFeedback('Gagal menambahkan ulasan ke database', 'error');
+        return;
+      }
     }
 
     setIsReviewModalOpen(false);
     setEditingReview(null);
+    await loadAllData();
     onDataChanged();
   };
 
   const handleToggleReviewActive = async (review: GuestReview) => {
     const nextActive = review.isActive === false;
-    const updatedItem: GuestReview = { ...review, isActive: nextActive };
-    const updatedList = reviews.map((r) => (r.id === review.id ? updatedItem : r));
-    setReviews(updatedList);
-    syncReviewsStorage(updatedList);
-    await updateReview(review.id, { isActive: nextActive });
-    showFeedback(
-      `Ulasan "${review.authorName}" ${nextActive ? 'ditampilkan' : 'disembunyikan'} di halaman utama.`
-    );
-    onDataChanged();
+    const ok = await updateReview(review.id, { isActive: nextActive });
+    if (ok) {
+      showFeedback(
+        `Ulasan "${review.authorName}" ${nextActive ? 'ditampilkan' : 'disembunyikan'} di database.`
+      );
+      await loadAllData();
+      onDataChanged();
+    } else {
+      showFeedback('Gagal memperbarui status ulasan di database', 'error');
+    }
   };
 
   const handleConfirmDeleteReview = async () => {
     if (!reviewToDelete) return;
     const target = reviewToDelete;
-    await deleteReview(target.id);
-    const updated = reviews.filter((r) => r.id !== target.id);
-    setReviews(updated);
-    syncReviewsStorage(updated);
-    setReviewToDelete(null);
-    showFeedback(`Ulasan dari "${target.authorName}" berhasil dihapus.`);
-    onDataChanged();
+    const ok = await deleteReview(target.id);
+    if (ok) {
+      setReviewToDelete(null);
+      showFeedback(`Ulasan dari "${target.authorName}" berhasil dihapus dari database.`);
+      await loadAllData();
+      onDataChanged();
+    } else {
+      showFeedback('Gagal menghapus ulasan dari database', 'error');
+    }
   };
 
   // ==========================================
@@ -2390,30 +2458,42 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                             </div>
                           </td>
                           <td className="p-3 whitespace-nowrap font-mono">
-                            <div className="font-bold text-[#182a24]">
-                              {formatPrice(room.priceIdr, room.priceUsd, currency)}
-                              <span className="text-[10px] font-normal text-[#73837b]"> / malam</span>
-                            </div>
-                            <div className="mt-1 space-y-0.5 text-[10px] text-[#52645c]">
-                              <div>
-                                Sun-Thu:{' '}
-                                <strong>
-                                  {formatPrice(room.priceSunThursIdr || room.priceIdr, room.priceSunThursUsd || room.priceUsd, currency)}
-                                </strong>
-                              </div>
-                              <div>
-                                Fri:{' '}
-                                <strong>
-                                  {formatPrice(room.priceFridayIdr || Math.round(room.priceIdr * 1.25), room.priceFridayUsd || Math.round(room.priceUsd * 1.25), currency)}
-                                </strong>
-                              </div>
-                              <div className="text-rose-800">
-                                Sat:{' '}
-                                <strong>
-                                  {formatPrice(room.priceSaturdayIdr || Math.round(room.priceIdr * 1.55), room.priceSaturdayUsd || Math.round(room.priceUsd * 1.55), currency)}
-                                </strong>
-                              </div>
-                            </div>
+                            {(() => {
+                              const sunIdr = room.priceSunThursIdr ?? room.priceIdr;
+                              const friIdr = room.priceFridayIdr ?? Math.round(sunIdr * 1.25);
+                              const satIdr = room.priceSaturdayIdr ?? Math.round(sunIdr * 1.55);
+                              const sunUsd = idrToLiveUsd(sunIdr, usdExchangeRate);
+                              const friUsd = idrToLiveUsd(friIdr, usdExchangeRate);
+                              const satUsd = idrToLiveUsd(satIdr, usdExchangeRate);
+                              return (
+                                <>
+                                  <div className="font-bold text-[#182a24]">
+                                    {formatPrice(sunIdr, sunUsd, currency)}
+                                    <span className="text-[10px] font-normal text-[#73837b]"> / malam</span>
+                                  </div>
+                                  <div className="mt-1 space-y-0.5 text-[10px] text-[#52645c]">
+                                    <div>
+                                      Sun-Thu:{' '}
+                                      <strong>{formatPrice(sunIdr, sunUsd, 'IDR')}</strong>
+                                      <span className="text-[#967d58] ml-1">(${sunUsd})</span>
+                                    </div>
+                                    <div>
+                                      Fri:{' '}
+                                      <strong>{formatPrice(friIdr, friUsd, 'IDR')}</strong>
+                                      <span className="text-[#967d58] ml-1">(${friUsd})</span>
+                                    </div>
+                                    <div className="text-rose-800">
+                                      Sat:{' '}
+                                      <strong>{formatPrice(satIdr, satUsd, 'IDR')}</strong>
+                                      <span className="text-[#967d58] ml-1">(${satUsd})</span>
+                                    </div>
+                                  </div>
+                                  <div className="mt-1 text-[9px] text-[#73837b]">
+                                    IDR Fix · Kurs $1 = Rp {usdExchangeRate.toLocaleString('id-ID')}
+                                  </div>
+                                </>
+                              );
+                            })()}
                           </td>
                           <td className="p-3 whitespace-nowrap">
                             <button
@@ -2446,7 +2526,20 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setEditingRoom({ ...room });
+                                  const snapSunIdr = room.priceSunThursIdr ?? room.priceIdr ?? 0;
+                                  const snapFriIdr = room.priceFridayIdr ?? Math.round(snapSunIdr * 1.25);
+                                  const snapSatIdr = room.priceSaturdayIdr ?? Math.round(snapSunIdr * 1.55);
+                                  setEditingRoom({
+                                    ...room,
+                                    priceIdr: snapSunIdr,
+                                    priceSunThursIdr: snapSunIdr,
+                                    priceFridayIdr: snapFriIdr,
+                                    priceSaturdayIdr: snapSatIdr,
+                                    priceUsd: idrToLiveUsd(snapSunIdr, usdExchangeRate),
+                                    priceSunThursUsd: idrToLiveUsd(snapSunIdr, usdExchangeRate),
+                                    priceFridayUsd: idrToLiveUsd(snapFriIdr, usdExchangeRate),
+                                    priceSaturdayUsd: idrToLiveUsd(snapSatIdr, usdExchangeRate),
+                                  });
                                   setIsRoomModalOpen(true);
                                 }}
                                 className="p-1.5 text-stone-700 hover:text-emerald-700 border border-[#ded7cb] hover:border-emerald-600 bg-white cursor-pointer transition-colors"
@@ -2959,7 +3052,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
 
           {/* TAB 4: SETTINGS & BDE CONTACT */}
           {activeTab === 'settings' && resortInfo && (
-            <form onSubmit={handleSaveResortInfo} className="space-y-6 max-w-3xl">
+            <form onSubmit={handleSaveResortInfo} autoComplete="off" className="space-y-6 max-w-3xl">
               <div className="pb-4 border-b border-[#ded7cb]">
                 <h3 className="font-serif text-lg font-bold text-[#182a24]">
                   Pengaturan Resor & Kontak BDE (Footer, Navbar & WhatsApp)
@@ -4131,7 +4224,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
               <button onClick={() => setIsRoomModalOpen(false)}><X className="w-5 h-5 text-stone-600" /></button>
             </div>
 
-            <form onSubmit={handleSaveRoom} className="space-y-3.5">
+            <form onSubmit={handleSaveRoom} autoComplete="off" className="space-y-3.5">
               {/* Status Ketersediaan Kamar & Isian Jumlah Kamar */}
               <div className="p-3.5 bg-[#f5f2ea] border border-[#ded7cb] space-y-3">
                 <div className="flex items-center justify-between">
@@ -4243,26 +4336,28 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                     const selectedCat = categories.find((c) => c.id === newCatId);
                     setEditingRoom((prev) => {
                       if (!prev) return prev;
+                      const isExistingRoom = rooms.some((r) => r.id === prev.id);
+                      // Never overwrite fixed prices when editing an existing room!
+                      if (isExistingRoom || !selectedCat) {
+                        return { ...prev, category: newCatId };
+                      }
+                      const catSunIdr = selectedCat.priceSunThursIdr ?? selectedCat.priceIdr ?? 850000;
+                      const catFriIdr = selectedCat.priceFridayIdr ?? Math.round(catSunIdr * 1.25);
+                      const catSatIdr = selectedCat.priceSaturdayIdr ?? Math.round(catSunIdr * 1.55);
                       return {
                         ...prev,
                         category: newCatId,
-                        ...(selectedCat && (!prev.name || prev.name.includes('Room') || prev.name.includes('Suite') || prev.name.includes('Villa') || prev.name.includes('Bed') || prev.name.includes('Transit') || prev.name.includes('FTB') || prev.name.includes('Deluxe') || prev.name.includes('Executive') || prev.name.includes('Premiere') || prev.name.includes('President'))
-                          ? {
-                              name: selectedCat.name || selectedCat.label,
-                              kicker: selectedCat.kicker,
-                              area: selectedCat.area,
-                              capacity: selectedCat.capacity,
-                              bedType: selectedCat.bedType,
-                              priceIdr: selectedCat.priceIdr,
-                              priceUsd: selectedCat.priceUsd,
-                              priceSunThursIdr: selectedCat.priceSunThursIdr || selectedCat.priceIdr,
-                              priceFridayIdr: selectedCat.priceFridayIdr || (selectedCat.priceIdr ? Math.round(selectedCat.priceIdr * 1.25) : undefined),
-                              priceSaturdayIdr: selectedCat.priceSaturdayIdr || (selectedCat.priceIdr ? Math.round(selectedCat.priceIdr * 1.55) : undefined),
-                              priceSunThursUsd: selectedCat.priceSunThursUsd || selectedCat.priceUsd,
-                              priceFridayUsd: selectedCat.priceFridayUsd || (selectedCat.priceUsd ? Math.round(selectedCat.priceUsd * 1.25) : undefined),
-                              priceSaturdayUsd: selectedCat.priceSaturdayUsd || (selectedCat.priceUsd ? Math.round(selectedCat.priceUsd * 1.55) : undefined),
-                            }
-                          : {}),
+                        area: selectedCat.area,
+                        capacity: selectedCat.capacity,
+                        bedType: selectedCat.bedType,
+                        priceIdr: catSunIdr,
+                        priceSunThursIdr: catSunIdr,
+                        priceFridayIdr: catFriIdr,
+                        priceSaturdayIdr: catSatIdr,
+                        priceUsd: idrToLiveUsd(catSunIdr, usdExchangeRate),
+                        priceSunThursUsd: idrToLiveUsd(catSunIdr, usdExchangeRate),
+                        priceFridayUsd: idrToLiveUsd(catFriIdr, usdExchangeRate),
+                        priceSaturdayUsd: idrToLiveUsd(catSatIdr, usdExchangeRate),
                       };
                     });
                   }}
@@ -4305,10 +4400,13 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                 </div>
                 <input
                   type="text"
+                  name="room_name_fresh_input"
+                  autoComplete="off"
+                  spellCheck={false}
                   required
                   value={editingRoom.name || ''}
                   onChange={(e) => setEditingRoom({ ...editingRoom, name: e.target.value })}
-                  placeholder="Contoh: Grand Deluxe Mountain Room"
+                  placeholder="Ketik nama kamar / villa baru..."
                   className="w-full border border-[#ded7cb] px-3 py-2 bg-[#fcfbf9] text-xs font-medium"
                 />
               </div>
@@ -4336,6 +4434,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                 </div>
                 <input
                   type="text"
+                  name="room_kicker_fresh_input"
+                  autoComplete="off"
                   value={editingRoom.kicker || ''}
                   onChange={(e) => setEditingRoom({ ...editingRoom, kicker: e.target.value })}
                   placeholder="Contoh: Kamar Deluxe Pilihan dengan Balkon Lembah Pinus"
@@ -4380,7 +4480,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                     Tentukan tarif menginap per malam berdasarkan hari reservasi tamu sesuai brosur resmi:
                   </p>
 
-                  {/* Kurs Dollar Saat Ini & Konversi Otomatis */}
+                  {/* Kurs Dollar Saat Ini (Live) & Harga IDR Fix */}
                   <div className="bg-[#ede7d8] p-2.5 border border-[#ded7cb] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-[#182a24] text-[11px] flex items-center gap-1">
@@ -4394,51 +4494,41 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                           min={1000}
                           value={usdExchangeRate}
                           onChange={(e) => {
-                            const newRate = Math.max(1000, Number(e.target.value) || 15500);
+                            const newRate = Math.max(1000, Number(e.target.value) || 16350);
                             setUsdExchangeRate(newRate);
-                            try { localStorage.setItem('chevilly_usd_rate', String(newRate)); } catch {}
+                            setLiveUsdRate(newRate);
+                            setEditingRoom((prev) => {
+                              if (!prev) return prev;
+                              const idrSun = prev.priceSunThursIdr ?? prev.priceIdr ?? 0;
+                              const idrFri = prev.priceFridayIdr ?? idrSun;
+                              const idrSat = prev.priceSaturdayIdr ?? idrSun;
+                              return {
+                                ...prev,
+                                priceUsd: idrToLiveUsd(idrSun, newRate),
+                                priceSunThursUsd: idrToLiveUsd(idrSun, newRate),
+                                priceFridayUsd: idrToLiveUsd(idrFri, newRate),
+                                priceSaturdayUsd: idrToLiveUsd(idrSat, newRate),
+                              };
+                            });
                           }}
                           className="w-20 font-mono font-bold text-xs text-[#182a24] focus:outline-none"
                         />
                       </div>
                       <span className="text-[9.5px] text-emerald-800 bg-emerald-50 px-1.5 py-0.5 border border-emerald-300 font-mono font-semibold">
-                        ● Kurs Otomatis Aktif
+                        ● IDR Fix · USD Live
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-medium text-[#182a24]">
-                        <input
-                          type="checkbox"
-                          checked={isAutoUsdCalc}
-                          onChange={(e) => setIsAutoUsdCalc(e.target.checked)}
-                          className="cursor-pointer"
-                        />
-                        <span>Hitung Otomatis USD</span>
-                      </label>
                       <button
                         type="button"
-                        onClick={() => {
-                          const idrSun = editingRoom.priceSunThursIdr || editingRoom.priceIdr || 0;
-                          const idrFri = editingRoom.priceFridayIdr || Math.round(idrSun * 1.25);
-                          const idrSat = editingRoom.priceSaturdayIdr || Math.round(idrSun * 1.55);
-                          setEditingRoom((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  priceSunThursUsd: Math.max(1, Math.round(idrSun / usdExchangeRate)),
-                                  priceUsd: Math.max(1, Math.round(idrSun / usdExchangeRate)),
-                                  priceFridayUsd: Math.max(1, Math.round(idrFri / usdExchangeRate)),
-                                  priceSaturdayUsd: Math.max(1, Math.round(idrSat / usdExchangeRate)),
-                                }
-                              : prev
-                          );
-                          showFeedback(`Semua harga dollar berhasil disesuaikan dengan kurs 1 USD = Rp ${usdExchangeRate.toLocaleString('id-ID')}`);
-                        }}
-                        className="px-2.5 py-1 bg-[#182a24] hover:bg-[#284138] text-white text-[10px] font-semibold uppercase tracking-wider transition-all shadow-xs cursor-pointer"
-                        title="Hitung ulang semua harga USD berdasarkan harga IDR dan kurs saat ini"
+                        disabled={isRefreshingUsdRate}
+                        onClick={() => handleRefreshLiveUsdRate(true)}
+                        className="px-2.5 py-1 bg-[#182a24] hover:bg-[#284138] disabled:opacity-60 text-white text-[10px] font-semibold uppercase tracking-wider transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                        title="Ambil kurs dollar (USD/IDR) terbaru saat ini dan sesuaikan harga USD secara otomatis"
                       >
-                        Konversi Sekarang
+                        <RefreshCw className={`w-3 h-3 text-[#d4af37] ${isRefreshingUsdRate ? 'animate-spin' : ''}`} />
+                        <span>{isRefreshingUsdRate ? 'Memuat...' : 'Perbarui Kurs Live'}</span>
                       </button>
                     </div>
                   </div>
@@ -4452,10 +4542,10 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                             Periode Hari
                           </th>
                           <th className="py-2 px-2.5 font-semibold text-[10.5px]">
-                            Harga IDR (Rp) <span className="text-red-400">*</span>
+                            Harga IDR (Fix) <span className="text-red-400">*</span>
                           </th>
                           <th className="py-2 px-2.5 font-semibold text-[10.5px]">
-                            Harga USD ($) <span className="text-[9px] text-[#fae7b3] font-normal font-mono">(Otomatis Kurs)</span>
+                            Harga USD ($) <span className="text-[9px] text-[#fae7b3] font-normal font-mono">(Sesuai Kurs Saat Ini)</span>
                           </th>
                           <th className="py-2 px-2.5 font-semibold text-[10.5px] hidden sm:table-cell">
                             Kategori Hari
@@ -4479,18 +4569,21 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                               <span className="absolute left-2 top-2 text-[10px] font-mono text-stone-400">Rp</span>
                               <input
                                 type="number"
+                                min={0}
                                 required
                                 value={editingRoom.priceSunThursIdr ?? editingRoom.priceIdr ?? 0}
                                 onChange={(e) => {
-                                  const val = Number(e.target.value);
-                                  const autoUsd = val > 0 ? Math.max(1, Math.round(val / usdExchangeRate)) : 0;
+                                  const raw = e.target.value;
+                                  const val = raw === '' ? 0 : Math.max(0, Number(raw));
+                                  const liveUsd = idrToLiveUsd(val, usdExchangeRate);
                                   setEditingRoom((prev) =>
                                     prev
                                       ? {
                                           ...prev,
                                           priceSunThursIdr: val,
                                           priceIdr: val,
-                                          ...(isAutoUsdCalc ? { priceSunThursUsd: autoUsd, priceUsd: autoUsd } : {}),
+                                          priceSunThursUsd: liveUsd,
+                                          priceUsd: liveUsd,
                                         }
                                       : prev
                                   );
@@ -4505,35 +4598,14 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                               <span className="absolute left-2 top-2 text-[10px] font-mono text-stone-400">$</span>
                               <input
                                 type="number"
-                                value={
-                                  editingRoom.priceSunThursUsd ??
-                                  (editingRoom.priceSunThursIdr
-                                    ? Math.max(1, Math.round(editingRoom.priceSunThursIdr / usdExchangeRate))
-                                    : editingRoom.priceUsd ?? 0)
-                                }
-                                onChange={(e) => {
-                                  const val = Number(e.target.value);
-                                  setEditingRoom((prev) =>
-                                    prev
-                                      ? {
-                                          ...prev,
-                                          priceSunThursUsd: val,
-                                          priceUsd: val,
-                                        }
-                                      : prev
-                                  );
-                                }}
-                                className="w-full pl-5 pr-8 py-1.5 border border-[#ded7cb] focus:border-[#182a24] bg-white font-mono text-xs font-semibold text-[#182a24]"
-                                placeholder="55"
+                                readOnly
+                                value={idrToLiveUsd(editingRoom.priceSunThursIdr ?? editingRoom.priceIdr ?? 0, usdExchangeRate)}
+                                className="w-full pl-5 pr-10 py-1.5 border border-[#ded7cb] bg-[#f7f5ef] font-mono text-xs font-semibold text-[#182a24] cursor-default"
+                                title={`Otomatis mengikuti kurs saat ini: Rp ${(editingRoom.priceSunThursIdr ?? editingRoom.priceIdr ?? 0).toLocaleString('id-ID')} ÷ ${usdExchangeRate.toLocaleString('id-ID')}`}
                               />
-                              {isAutoUsdCalc && (
-                                <span
-                                  className="absolute right-1.5 top-1 px-1 py-0.5 bg-emerald-100 text-emerald-800 text-[8.5px] font-mono font-bold rounded uppercase"
-                                  title={`Dihitung otomatis: Rp ${(editingRoom.priceSunThursIdr || editingRoom.priceIdr || 0).toLocaleString('id-ID')} ÷ ${usdExchangeRate.toLocaleString('id-ID')}`}
-                                >
-                                  Auto
-                                </span>
-                              )}
+                              <span className="absolute right-1.5 top-1.5 px-1 py-0.5 bg-emerald-100 text-emerald-800 text-[8.5px] font-mono font-bold rounded uppercase">
+                                Live
+                              </span>
                             </div>
                           </td>
                           <td className="py-2 px-2.5 hidden sm:table-cell">
@@ -4559,17 +4631,19 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                               <span className="absolute left-2 top-2 text-[10px] font-mono text-stone-400">Rp</span>
                               <input
                                 type="number"
+                                min={0}
                                 required
-                                value={editingRoom.priceFridayIdr ?? (editingRoom.priceIdr ? Math.round(editingRoom.priceIdr * 1.25) : 0)}
+                                value={editingRoom.priceFridayIdr ?? 0}
                                 onChange={(e) => {
-                                  const val = Number(e.target.value);
-                                  const autoUsd = val > 0 ? Math.max(1, Math.round(val / usdExchangeRate)) : 0;
+                                  const raw = e.target.value;
+                                  const val = raw === '' ? 0 : Math.max(0, Number(raw));
+                                  const liveUsd = idrToLiveUsd(val, usdExchangeRate);
                                   setEditingRoom((prev) =>
                                     prev
                                       ? {
                                           ...prev,
                                           priceFridayIdr: val,
-                                          ...(isAutoUsdCalc ? { priceFridayUsd: autoUsd } : {}),
+                                          priceFridayUsd: liveUsd,
                                         }
                                       : prev
                                   );
@@ -4584,34 +4658,14 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                               <span className="absolute left-2 top-2 text-[10px] font-mono text-stone-400">$</span>
                               <input
                                 type="number"
-                                value={
-                                  editingRoom.priceFridayUsd ??
-                                  (editingRoom.priceFridayIdr
-                                    ? Math.max(1, Math.round(editingRoom.priceFridayIdr / usdExchangeRate))
-                                    : editingRoom.priceUsd ? Math.round(editingRoom.priceUsd * 1.25) : 0)
-                                }
-                                onChange={(e) => {
-                                  const val = Number(e.target.value);
-                                  setEditingRoom((prev) =>
-                                    prev
-                                      ? {
-                                          ...prev,
-                                          priceFridayUsd: val,
-                                        }
-                                      : prev
-                                  );
-                                }}
-                                className="w-full pl-5 pr-8 py-1.5 border border-[#ded7cb] focus:border-[#182a24] bg-white font-mono text-xs font-semibold text-[#182a24]"
-                                placeholder="68"
+                                readOnly
+                                value={idrToLiveUsd(editingRoom.priceFridayIdr ?? 0, usdExchangeRate)}
+                                className="w-full pl-5 pr-10 py-1.5 border border-[#ded7cb] bg-[#f7f5ef] font-mono text-xs font-semibold text-[#182a24] cursor-default"
+                                title={`Otomatis mengikuti kurs saat ini: Rp ${(editingRoom.priceFridayIdr ?? 0).toLocaleString('id-ID')} ÷ ${usdExchangeRate.toLocaleString('id-ID')}`}
                               />
-                              {isAutoUsdCalc && (
-                                <span
-                                  className="absolute right-1.5 top-1 px-1 py-0.5 bg-emerald-100 text-emerald-800 text-[8.5px] font-mono font-bold rounded uppercase"
-                                  title={`Dihitung otomatis: Rp ${(editingRoom.priceFridayIdr || 0).toLocaleString('id-ID')} ÷ ${usdExchangeRate.toLocaleString('id-ID')}`}
-                                >
-                                  Auto
-                                </span>
-                              )}
+                              <span className="absolute right-1.5 top-1.5 px-1 py-0.5 bg-emerald-100 text-emerald-800 text-[8.5px] font-mono font-bold rounded uppercase">
+                                Live
+                              </span>
                             </div>
                           </td>
                           <td className="py-2 px-2.5 hidden sm:table-cell">
@@ -4637,17 +4691,19 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                               <span className="absolute left-2 top-2 text-[10px] font-mono text-stone-400">Rp</span>
                               <input
                                 type="number"
+                                min={0}
                                 required
-                                value={editingRoom.priceSaturdayIdr ?? (editingRoom.priceIdr ? Math.round(editingRoom.priceIdr * 1.55) : 0)}
+                                value={editingRoom.priceSaturdayIdr ?? 0}
                                 onChange={(e) => {
-                                  const val = Number(e.target.value);
-                                  const autoUsd = val > 0 ? Math.max(1, Math.round(val / usdExchangeRate)) : 0;
+                                  const raw = e.target.value;
+                                  const val = raw === '' ? 0 : Math.max(0, Number(raw));
+                                  const liveUsd = idrToLiveUsd(val, usdExchangeRate);
                                   setEditingRoom((prev) =>
                                     prev
                                       ? {
                                           ...prev,
                                           priceSaturdayIdr: val,
-                                          ...(isAutoUsdCalc ? { priceSaturdayUsd: autoUsd } : {}),
+                                          priceSaturdayUsd: liveUsd,
                                         }
                                       : prev
                                   );
@@ -4662,34 +4718,14 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                               <span className="absolute left-2 top-2 text-[10px] font-mono text-stone-400">$</span>
                               <input
                                 type="number"
-                                value={
-                                  editingRoom.priceSaturdayUsd ??
-                                  (editingRoom.priceSaturdayIdr
-                                    ? Math.max(1, Math.round(editingRoom.priceSaturdayIdr / usdExchangeRate))
-                                    : editingRoom.priceUsd ? Math.round(editingRoom.priceUsd * 1.55) : 0)
-                                }
-                                onChange={(e) => {
-                                  const val = Number(e.target.value);
-                                  setEditingRoom((prev) =>
-                                    prev
-                                      ? {
-                                          ...prev,
-                                          priceSaturdayUsd: val,
-                                        }
-                                      : prev
-                                  );
-                                }}
-                                className="w-full pl-5 pr-8 py-1.5 border border-[#ded7cb] focus:border-[#182a24] bg-white font-mono text-xs font-semibold text-[#182a24]"
-                                placeholder="88"
+                                readOnly
+                                value={idrToLiveUsd(editingRoom.priceSaturdayIdr ?? 0, usdExchangeRate)}
+                                className="w-full pl-5 pr-10 py-1.5 border border-[#ded7cb] bg-[#f7f5ef] font-mono text-xs font-semibold text-[#182a24] cursor-default"
+                                title={`Otomatis mengikuti kurs saat ini: Rp ${(editingRoom.priceSaturdayIdr ?? 0).toLocaleString('id-ID')} ÷ ${usdExchangeRate.toLocaleString('id-ID')}`}
                               />
-                              {isAutoUsdCalc && (
-                                <span
-                                  className="absolute right-1.5 top-1 px-1 py-0.5 bg-emerald-100 text-emerald-800 text-[8.5px] font-mono font-bold rounded uppercase"
-                                  title={`Dihitung otomatis: Rp ${(editingRoom.priceSaturdayIdr || 0).toLocaleString('id-ID')} ÷ ${usdExchangeRate.toLocaleString('id-ID')}`}
-                                >
-                                  Auto
-                                </span>
-                              )}
+                              <span className="absolute right-1.5 top-1.5 px-1 py-0.5 bg-emerald-100 text-emerald-800 text-[8.5px] font-mono font-bold rounded uppercase">
+                                Live
+                              </span>
                             </div>
                           </td>
                           <td className="py-2 px-2.5 hidden sm:table-cell">
@@ -4963,7 +4999,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
               <button onClick={() => setIsTourModalOpen(false)}><X className="w-5 h-5 text-stone-600" /></button>
             </div>
 
-            <form onSubmit={handleSaveTour} className="space-y-3.5">
+            <form onSubmit={handleSaveTour} autoComplete="off" className="space-y-3.5">
               <div className="p-3 bg-white border border-[#ded7cb] space-y-1.5 shadow-2xs">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-semibold text-[#182a24]">Nama Wahana / Wisata</label>
@@ -5256,7 +5292,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveCategory} className="space-y-4">
+            <form onSubmit={handleSaveCategory} autoComplete="off" className="space-y-4">
               <div>
                 <label className="text-xs font-semibold text-[#182a24] block mb-1">
                   Nama Kategori <span className="text-red-500">*</span>
@@ -5352,7 +5388,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveMapLocation} className="space-y-4">
+            <form onSubmit={handleSaveMapLocation} autoComplete="off" className="space-y-4">
               {/* Row 1: Nomor & Kategori */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -5717,7 +5753,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveVenue} className="space-y-4">
+            <form onSubmit={handleSaveVenue} autoComplete="off" className="space-y-4">
               {/* Row 1: Nama & Kategori */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
@@ -6087,7 +6123,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveHeroVideo} className="space-y-4">
+            <form onSubmit={handleSaveHeroVideo} autoComplete="off" className="space-y-4">
               {/* Judul Video with Checklist Button */}
               <div className="p-3 bg-white border border-[#ded7cb] space-y-1.5 shadow-2xs">
                 <div className="flex items-center justify-between">
@@ -6384,7 +6420,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveAddOn} className="space-y-4">
+            <form onSubmit={handleSaveAddOn} autoComplete="off" className="space-y-4">
               {/* Status Aktif */}
               <div className="p-3 bg-[#f5f2ea] border border-[#ded7cb] flex items-center justify-between gap-3">
                 <div>
@@ -7629,7 +7665,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveReview} className="space-y-4">
+            <form onSubmit={handleSaveReview} autoComplete="off" className="space-y-4">
               {/* Status Tampil */}
               <div className="p-3 bg-[#f5f2ea] border border-[#ded7cb] flex items-center justify-between gap-3">
                 <div>
