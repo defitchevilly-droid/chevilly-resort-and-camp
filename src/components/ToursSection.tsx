@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { TourExperience, Currency } from '../types';
 import { formatPrice } from '../utils/formatters';
-import { Clock, Mountain, ShieldCheck, Compass, ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 
 export type TourCategoryFilter = 'all' | 'wahana' | 'spot-foto' | 'adventure' | 'keluarga';
 
@@ -178,91 +178,82 @@ export const ToursSection: React.FC<ToursSectionProps> = ({
               </div>
 
               {/* Card Body */}
-              <div className="p-6 flex flex-col flex-1 justify-between">
-                <div>
-                  {/* Unboxed Metadata (NO PILLS) */}
-                  <div className="flex items-center gap-2 text-xs text-[#73837b] mb-2 flex-wrap">
-                    {tour.showDuration !== false && tour.duration && (
-                      <>
-                        <span className="flex items-center gap-1 font-mono tabular-nums">
-                          <Clock className="w-3.5 h-3.5 text-[#967d58]" />
-                          {tour.duration}
-                        </span>
-                        <span aria-hidden="true">·</span>
-                      </>
-                    )}
-                    <span className="flex items-center gap-1 text-[#384841]">
-                      <Mountain className="w-3.5 h-3.5 text-[#967d58]" />
-                      {tour.difficulty}
+              <div className="p-6 flex flex-col flex-1 justify-between gap-5">
+                <div className="space-y-2.5">
+                  {/* Clean editorial category & essential info */}
+                  <div className="flex items-center justify-between gap-3 flex-wrap text-[11px] text-[#7c8a83]">
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-[#967d58]">
+                      {tour.category === 'wahana'
+                        ? 'Waterpark'
+                        : tour.category === 'spot-foto'
+                          ? 'Spot Foto'
+                          : tour.category === 'adventure'
+                            ? 'Adventure'
+                            : 'Keluarga'}
                     </span>
-                    <span aria-hidden="true">·</span>
-                    <span className="text-[#967d58] font-mono tabular-nums">★ {tour.rating}</span>
+                    <div className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
+                      {tour.showDuration !== false && tour.duration && (
+                        <>
+                          <span>{tour.duration}</span>
+                          <span className="text-[#cfc7b8]" aria-hidden="true">·</span>
+                        </>
+                      )}
+                      <span className="text-[#967d58]">★ {tour.rating}</span>
+                    </div>
                   </div>
 
                   {tour.showName !== false && tour.name && (
-                    <h3 className="font-serif text-xl text-[#182a24] font-medium mb-2.5 group-hover:text-[#967d58] transition-colors leading-snug">
+                    <h3 className="font-serif text-[21px] sm:text-2xl text-[#182a24] font-normal tracking-tight leading-snug group-hover:text-[#967d58] transition-colors">
                       {tour.name}
                     </h3>
                   )}
 
                   {tour.showDescription !== false && tour.description && (
-                    <p className="text-xs text-[#52645c] leading-relaxed mb-4 line-clamp-2">
+                    <p className="text-xs text-[#5d6e66] leading-relaxed line-clamp-2">
                       {tour.description}
                     </p>
                   )}
-
-                  {/* Certified Guide Marker */}
-                  <div className="flex items-start gap-2 text-[11px] text-[#34463f] bg-[#f2eee4] p-2.5 border border-[#e2dcd0] mb-4">
-                    <ShieldCheck className="w-4 h-4 text-[#967d58] shrink-0 mt-0.5" />
-                    <span className="line-clamp-2">{tour.guideType}</span>
-                  </div>
-
-                  {/* Quick Inclusions */}
-                  <div className="text-[11px] text-[#6b7b73] space-y-1 mb-4">
-                    <div className="flex items-center gap-1.5">
-                      <Compass className="w-3 h-3 text-[#b89562]" />
-                      <span className="truncate">{tour.inclusions[0]}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Compass className="w-3 h-3 text-[#b89562]" />
-                      <span className="truncate">{tour.inclusions[1]}</span>
-                    </div>
-                  </div>
                 </div>
 
-                {/* Price & Action */}
-                <div className="pt-4 border-t border-[#eee9de] flex items-end justify-between gap-3">
+                {/* Minimal Price & Actions Footer */}
+                <div className="pt-4 border-t border-[#ebe5d9] flex items-end justify-between gap-3">
                   {tour.showPrice !== false ? (
                     <div>
-                      <div className="text-[10px] uppercase tracking-wider text-[#73837b]">Tiket Wahana / Wisata</div>
+                      <div className="text-[10px] uppercase tracking-[0.16em] text-[#8a968f] mb-0.5">
+                        Tiket masuk
+                      </div>
                       <div className="flex items-baseline gap-1">
-                        <span className="font-serif text-xl sm:text-2xl font-medium text-[#182a24] font-mono tabular-nums">
+                        <span className="font-serif text-xl sm:text-2xl font-medium text-[#182a24] tabular-nums tracking-tight">
                           {formatPrice(tour.priceIdr, tour.priceUsd, currency)}
                         </span>
-                        <span className="text-[11px] text-[#73837b]">/ orang</span>
+                        <span className="text-[11px] text-[#8a968f]">/ orang</span>
                       </div>
                     </div>
                   ) : (
                     <div>
-                      <div className="text-[10px] uppercase tracking-wider text-[#73837b]">Tiket Masuk</div>
-                      <div className="text-xs font-serif italic text-stone-500">Info di Lokasi</div>
+                      <div className="text-[10px] uppercase tracking-[0.16em] text-[#8a968f] mb-0.5">
+                        Tiket masuk
+                      </div>
+                      <div className="text-xs font-serif italic text-[#5d6e66]">Info di Lokasi</div>
                     </div>
                   )}
 
                   <div className="flex items-center gap-2">
                     <button
+                      type="button"
                       onClick={() => onViewTourDetails(tour)}
-                      className="p-2 border border-[#cfc7b8] text-[#34453e] hover:border-[#182a24] hover:text-[#182a24] transition-colors cursor-pointer"
+                      className="px-2.5 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#34453e] hover:text-[#967d58] border-b border-transparent hover:border-[#967d58] transition-colors cursor-pointer inline-flex items-center gap-1"
                       title="Lihat Detail Wahana"
-                      aria-label="Detail Wisata"
                     >
-                      <ArrowUpRight className="w-4 h-4" />
+                      <span>Detail</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
                     </button>
                     <button
+                      type="button"
                       onClick={() => onSelectTour(tour)}
-                      className="px-4 py-2 text-xs font-medium uppercase tracking-wider bg-[#182a24] text-[#f7f5ef] hover:bg-[#284138] transition-colors cursor-pointer shadow-sm"
+                      className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-[0.18em] bg-[#182a24] text-[#f7f5ef] hover:bg-[#233a32] transition-colors cursor-pointer"
                     >
-                      Pesan Tiket
+                      Pesan
                     </button>
                   </div>
                 </div>

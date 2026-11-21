@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ACCOMMODATION_DROPDOWN_ITEMS } from '../data/resortData';
 import { RoomSuite, Currency, RoomCategoryItem } from '../types';
 import { formatPrice } from '../utils/formatters';
-import { Maximize2, Users, ArrowUpRight, Building2 } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 
 interface SuitesSectionProps {
   currency: Currency;
@@ -344,80 +344,63 @@ export const SuitesSection: React.FC<SuitesSectionProps> = ({
                 </div>
 
                 {/* Content area */}
-                <div className="p-6 sm:p-7 flex flex-col flex-1 justify-between">
-                  <div>
-                    {/* Unboxed Metadata (NO PILLS) */}
-                    <div className="flex items-center gap-2 text-xs text-[#73837b] mb-2.5 flex-wrap">
-                      <span className="uppercase tracking-wider font-semibold text-[#967d58]">
+                <div className="p-6 sm:p-7 flex flex-col flex-1 justify-between gap-5">
+                  <div className="space-y-2.5">
+                    {/* Clean editorial category & essential specs */}
+                    <div className="flex items-center justify-between gap-3 flex-wrap text-[11px] text-[#7c8a83]">
+                      <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-[#967d58]">
                         {getCategoryLabel(suite.category)}
                       </span>
-                      <span aria-hidden="true">·</span>
-                      <span className="flex items-center gap-1 font-mono tabular-nums">
-                        <Maximize2 className="w-3 h-3 text-[#967d58]" />
-                        {suite.area}
-                      </span>
-                      <span aria-hidden="true">·</span>
-                      <span className="flex items-center gap-1">
-                        <Users className="w-3 h-3 text-[#967d58]" />
-                        {suite.capacity}
-                      </span>
-                      <span aria-hidden="true">·</span>
-                      <span className="flex items-center gap-1 font-mono text-[11px] text-[#4e5e57]">
-                        <Building2 className="w-3 h-3 text-[#967d58]" />
+                      <div className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
+                        <span>{suite.area}</span>
+                        <span className="text-[#cfc7b8]" aria-hidden="true">·</span>
+                        <span className="font-sans">{suite.capacity}</span>
+                        <span className="text-[#cfc7b8]" aria-hidden="true">·</span>
                         <span>{suite.totalRooms || 10} Unit</span>
-                      </span>
-                      <span aria-hidden="true">·</span>
-                      <span
-                        className={`inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold ${
-                          isAvailable ? 'text-emerald-700' : 'text-rose-600'
-                        }`}
-                      >
-                        <span
-                          className={`w-2 h-2 rounded-full inline-block ${
-                            isAvailable ? 'bg-emerald-500' : 'bg-rose-500'
-                          }`}
-                        />
-                        <span>{isAvailable ? 'Available' : 'Tidak Available'}</span>
-                      </span>
+                      </div>
                     </div>
 
                     {suite.showName !== false && suite.name && (
-                      <h3 className="font-serif text-2xl text-[#182a24] font-medium mb-2 group-hover:text-[#967d58] transition-colors">
+                      <h3 className="font-serif text-[22px] sm:text-2xl text-[#182a24] font-normal tracking-tight leading-snug group-hover:text-[#967d58] transition-colors">
                         {suite.name}
                       </h3>
                     )}
 
                     {suite.showDescription !== false && suite.description && (
-                      <p className="text-xs sm:text-sm text-[#52645c] leading-relaxed mb-4 line-clamp-2">
+                      <p className="text-xs text-[#5d6e66] leading-relaxed line-clamp-2">
                         {suite.description}
                       </p>
                     )}
                   </div>
 
-                  {/* Price baseline and Action Buttons */}
-                  <div className="pt-4 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                  {/* Minimal Price & Actions Footer */}
+                  <div className="pt-4 border-t border-[#ebe5d9] flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                     {suite.showPrice !== false ? (
                       <div>
-                        <div className="text-[11px] uppercase tracking-wider text-[#73837b]">Mulai Dari</div>
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-[#8a968f] mb-0.5">
+                          Mulai dari
+                        </div>
                         <div className="flex items-baseline gap-1.5">
-                          <span className="font-serif text-2xl sm:text-3xl font-medium text-[#182a24] font-mono tabular-nums">
+                          <span className="font-serif text-xl sm:text-2xl font-medium text-[#182a24] tabular-nums tracking-tight">
                             {formatPrice(suite.priceIdr, suite.priceUsd, currency)}
                           </span>
-                          <span className="text-xs text-[#73837b]">/ malam</span>
+                          <span className="text-[11px] text-[#8a968f]">/ malam</span>
                         </div>
                       </div>
                     ) : (
                       <div>
-                        <div className="text-[11px] uppercase tracking-wider text-[#73837b]">Tarif Kamar</div>
-                        <div className="text-xs font-serif italic text-stone-500">Hubungi Reservasi</div>
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-[#8a968f] mb-0.5">
+                          Tarif Kamar
+                        </div>
+                        <div className="text-xs font-serif italic text-[#5d6e66]">Hubungi Reservasi</div>
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <button
                         type="button"
                         onClick={() => onViewRoomDetails(suite)}
-                        className="px-3.5 py-2 text-xs font-medium uppercase tracking-wider border border-[#cfc7b8] text-[#34453e] hover:border-[#182a24] hover:text-[#182a24] transition-colors cursor-pointer flex items-center gap-1"
+                        className="px-3 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#34453e] hover:text-[#967d58] border-b border-transparent hover:border-[#967d58] transition-colors cursor-pointer inline-flex items-center gap-1"
                       >
                         <span>Detail</span>
                         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -427,13 +410,13 @@ export const SuitesSection: React.FC<SuitesSectionProps> = ({
                         type="button"
                         disabled={!isAvailable}
                         onClick={() => isAvailable && onSelectRoom(suite)}
-                        className={`px-5 py-2 text-xs font-medium uppercase tracking-widest transition-colors shadow-sm ${
+                        className={`px-5 py-2.5 text-[11px] font-medium uppercase tracking-[0.18em] transition-colors ${
                           isAvailable
-                            ? 'bg-[#182a24] text-[#f7f5ef] hover:bg-[#284138] cursor-pointer'
-                            : 'bg-[#e3ddd0] text-[#7d796f] cursor-not-allowed border border-[#d1cabd]'
+                            ? 'bg-[#182a24] text-[#f7f5ef] hover:bg-[#233a32] cursor-pointer'
+                            : 'bg-[#e8e2d6] text-[#8a867c] cursor-not-allowed'
                         }`}
                       >
-                        {isAvailable ? 'Pesan Suite' : 'Tidak Available'}
+                        {isAvailable ? 'Pesan' : 'Penuh'}
                       </button>
                     </div>
                   </div>

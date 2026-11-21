@@ -192,5 +192,34 @@ export interface GuestReview {
   createdAt?: string;
 }
 
+export interface FasilitasSaranaItem {
+  id: string;
+  code: string;
+  name: string;
+  price: string;
+  capacity?: string;
+  image: string;
+  isActive?: boolean;
+}
 
+export interface FasilitasOperatingHour {
+  day: string;
+  hours: string;
+}
 
+export interface ZonaPrabayarItem {
+  id: string;
+  code: string;
+  name: string;
+  area: string;
+  price: string;
+  capacity: string;
+  size: string;
+  image: string;
+  isActive?: boolean;
+}
+
+export interface ZonaRentalFacility {
+  label: string;
+  price: string;
+}

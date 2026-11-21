@@ -1,4 +1,15 @@
-import { RoomSuite, TourExperience, Reservation, BookingAddOn, RoomCategoryItem, GuestReview } from '../types';
+import {
+  RoomSuite,
+  TourExperience,
+  Reservation,
+  BookingAddOn,
+  RoomCategoryItem,
+  GuestReview,
+  FasilitasSaranaItem,
+  FasilitasOperatingHour,
+  ZonaPrabayarItem,
+  ZonaRentalFacility,
+} from '../types';
 
 export interface ResortInfoData {
   name: string;
@@ -479,6 +490,247 @@ export async function saveVenuesToServer<T = any>(venues: T[]): Promise<boolean>
   } catch (err) {
     console.error('Failed to save venues:', err);
     return false;
+  }
+}
+
+// 5g. Fasilitas & Sarana (CRUD — Carousel Menu Fasilitas)
+export interface AdminMutationResult<T = any> {
+  ok: boolean;
+  unauthorized?: boolean;
+  message?: string;
+  data?: T;
+}
+
+function buildAdminHeaders(token?: string): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+export interface FasilitasSaranaPayload {
+  items: FasilitasSaranaItem[];
+  operatingHours: FasilitasOperatingHour[];
+}
+
+export async function fetchFasilitasSarana(): Promise<FasilitasSaranaPayload | null> {
+  try {
+    const res = await noCacheGet('/api/fasilitas-sarana');
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (!json?.data) return null;
+    return {
+      items: Array.isArray(json.data.items) ? json.data.items : [],
+      operatingHours: Array.isArray(json.data.operatingHours) ? json.data.operatingHours : [],
+    };
+  } catch (err) {
+    console.error('Failed to fetch fasilitas sarana:', err);
+    return null;
+  }
+}
+
+export async function createFasilitasSarana(
+  item: Partial<FasilitasSaranaItem>,
+  adminToken: string
+): Promise<AdminMutationResult<FasilitasSaranaItem>> {
+  try {
+    const res = await fetch('/api/fasilitas-sarana', {
+      method: 'POST',
+      headers: buildAdminHeaders(adminToken),
+      body: JSON.stringify(item),
+    });
+    const json = await res.json().catch(() => ({}));
+    return {
+      ok: res.ok,
+      unauthorized: res.status === 401,
+      message: json.message,
+      data: json.data,
+    };
+  } catch (err) {
+    console.error('Failed to create fasilitas sarana:', err);
+    return { ok: false, message: 'Gagal terhubung ke server' };
+  }
+}
+
+export async function updateFasilitasSarana(
+  id: string,
+  item: Partial<FasilitasSaranaItem>,
+  adminToken: string
+): Promise<AdminMutationResult<FasilitasSaranaItem>> {
+  try {
+    const res = await fetch(`/api/fasilitas-sarana/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: buildAdminHeaders(adminToken),
+      body: JSON.stringify(item),
+    });
+    const json = await res.json().catch(() => ({}));
+    return {
+      ok: res.ok,
+      unauthorized: res.status === 401,
+      message: json.message,
+      data: json.data,
+    };
+  } catch (err) {
+    console.error('Failed to update fasilitas sarana:', err);
+    return { ok: false, message: 'Gagal terhubung ke server' };
+  }
+}
+
+export async function deleteFasilitasSarana(
+  id: string,
+  adminToken: string
+): Promise<AdminMutationResult> {
+  try {
+    const res = await fetch(`/api/fasilitas-sarana/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: buildAdminHeaders(adminToken),
+    });
+    const json = await res.json().catch(() => ({}));
+    return {
+      ok: res.ok,
+      unauthorized: res.status === 401,
+      message: json.message,
+    };
+  } catch (err) {
+    console.error('Failed to delete fasilitas sarana:', err);
+    return { ok: false, message: 'Gagal terhubung ke server' };
+  }
+}
+
+export async function updateFasilitasOperatingHours(
+  operatingHours: FasilitasOperatingHour[],
+  adminToken: string
+): Promise<AdminMutationResult<FasilitasOperatingHour[]>> {
+  try {
+    const res = await fetch('/api/fasilitas-sarana-hours', {
+      method: 'PUT',
+      headers: buildAdminHeaders(adminToken),
+      body: JSON.stringify({ operatingHours }),
+    });
+    const json = await res.json().catch(() => ({}));
+    return {
+      ok: res.ok,
+      unauthorized: res.status === 401,
+      message: json.message,
+      data: json.data,
+    };
+  } catch (err) {
+    console.error('Failed to update fasilitas operating hours:', err);
+    return { ok: false, message: 'Gagal terhubung ke server' };
+  }
+}
+
+// 5h. Explore Zona / Zona Prabayar (CRUD — Carousel Menu Explore Zona)
+export interface ZonaPrabayarPayload {
+  items: ZonaPrabayarItem[];
+  rentalFacilities: ZonaRentalFacility[];
+}
+
+export async function fetchZonaPrabayar(): Promise<ZonaPrabayarPayload | null> {
+  try {
+    const res = await noCacheGet('/api/zona-prabayar');
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (!json?.data) return null;
+    return {
+      items: Array.isArray(json.data.items) ? json.data.items : [],
+      rentalFacilities: Array.isArray(json.data.rentalFacilities) ? json.data.rentalFacilities : [],
+    };
+  } catch (err) {
+    console.error('Failed to fetch zona prabayar:', err);
+    return null;
+  }
+}
+
+export async function createZonaPrabayar(
+  item: Partial<ZonaPrabayarItem>,
+  adminToken: string
+): Promise<AdminMutationResult<ZonaPrabayarItem>> {
+  try {
+    const res = await fetch('/api/zona-prabayar', {
+      method: 'POST',
+      headers: buildAdminHeaders(adminToken),
+      body: JSON.stringify(item),
+    });
+    const json = await res.json().catch(() => ({}));
+    return {
+      ok: res.ok,
+      unauthorized: res.status === 401,
+      message: json.message,
+      data: json.data,
+    };
+  } catch (err) {
+    console.error('Failed to create zona prabayar:', err);
+    return { ok: false, message: 'Gagal terhubung ke server' };
+  }
+}
+
+export async function updateZonaPrabayar(
+  id: string,
+  item: Partial<ZonaPrabayarItem>,
+  adminToken: string
+): Promise<AdminMutationResult<ZonaPrabayarItem>> {
+  try {
+    const res = await fetch(`/api/zona-prabayar/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: buildAdminHeaders(adminToken),
+      body: JSON.stringify(item),
+    });
+    const json = await res.json().catch(() => ({}));
+    return {
+      ok: res.ok,
+      unauthorized: res.status === 401,
+      message: json.message,
+      data: json.data,
+    };
+  } catch (err) {
+    console.error('Failed to update zona prabayar:', err);
+    return { ok: false, message: 'Gagal terhubung ke server' };
+  }
+}
+
+export async function deleteZonaPrabayar(
+  id: string,
+  adminToken: string
+): Promise<AdminMutationResult> {
+  try {
+    const res = await fetch(`/api/zona-prabayar/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: buildAdminHeaders(adminToken),
+    });
+    const json = await res.json().catch(() => ({}));
+    return {
+      ok: res.ok,
+      unauthorized: res.status === 401,
+      message: json.message,
+    };
+  } catch (err) {
+    console.error('Failed to delete zona prabayar:', err);
+    return { ok: false, message: 'Gagal terhubung ke server' };
+  }
+}
+
+export async function updateZonaRentalFacilities(
+  rentalFacilities: ZonaRentalFacility[],
+  adminToken: string
+): Promise<AdminMutationResult<ZonaRentalFacility[]>> {
+  try {
+    const res = await fetch('/api/zona-prabayar-rentals', {
+      method: 'PUT',
+      headers: buildAdminHeaders(adminToken),
+      body: JSON.stringify({ rentalFacilities }),
+    });
+    const json = await res.json().catch(() => ({}));
+    return {
+      ok: res.ok,
+      unauthorized: res.status === 401,
+      message: json.message,
+      data: json.data,
+    };
+  } catch (err) {
+    console.error('Failed to update zona rental facilities:', err);
+    return { ok: false, message: 'Gagal terhubung ke server' };
   }
 }
 

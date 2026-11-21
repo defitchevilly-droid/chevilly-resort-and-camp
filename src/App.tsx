@@ -21,13 +21,27 @@ import { EmailDeliveryToast } from './components/EmailDeliveryToast';
 import { InvoiceModal } from './components/InvoiceModal';
 import { WhatsAppFloatingWidget } from './components/WhatsAppFloatingWidget';
 import { AdminPortalModal } from './components/AdminPortalModal';
-import { RoomSuite, TourExperience, Currency, Reservation, VisitorUser, RoomCategoryItem, GuestReview, BookingAddOn } from './types';
+import {
+  RoomSuite,
+  TourExperience,
+  Currency,
+  Reservation,
+  VisitorUser,
+  RoomCategoryItem,
+  GuestReview,
+  BookingAddOn,
+  FasilitasSaranaItem,
+  FasilitasOperatingHour,
+  ZonaPrabayarItem,
+  ZonaRentalFacility,
+} from './types';
 import { ROOM_SUITES, TOUR_EXPERIENCES } from './data/resortData';
 import { HeroVideoItem } from './data/heroVideos';
 import { MapLocation } from './components/WellnessAndDining';
 import {
   fetchRooms, fetchTours, fetchFacilities, fetchReservations, fetchCategories, fetchReviews,
   fetchResortInfo, fetchHeroVideos, fetchMapLocations, fetchAddOns,
+  fetchFasilitasSarana, fetchZonaPrabayar,
   createReservation, deleteReservation, fetchLiveUsdRate, FacilitiesData, ResortInfoData
 } from './services/api';
 import { setLiveUsdRate } from './utils/formatters';
@@ -138,12 +152,29 @@ export default function App() {
   const [mapLocationsData, setMapLocationsData] = useState<MapLocation[] | null>(null);
   const [addOnsData, setAddOnsData] = useState<BookingAddOn[]>([]);
   const [reviewsData, setReviewsData] = useState<GuestReview[]>([]);
+  const [fasilitasSaranaData, setFasilitasSaranaData] = useState<FasilitasSaranaItem[] | undefined>(undefined);
+  const [fasilitasHoursData, setFasilitasHoursData] = useState<FasilitasOperatingHour[] | undefined>(undefined);
+  const [zonaPrabayarData, setZonaPrabayarData] = useState<ZonaPrabayarItem[] | undefined>(undefined);
+  const [zonaRentalsData, setZonaRentalsData] = useState<ZonaRentalFacility[] | undefined>(undefined);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
   // Sync all front-page data directly with backend database (no-cache)
   const loadBackendData = async () => {
     try {
-      const [r, t, f, resList, catsList, revList, infoRes, heroVids, mapLocs, addOnsList] = await Promise.all([
+      const [
+        r,
+        t,
+        f,
+        resList,
+        catsList,
+        revList,
+        infoRes,
+        heroVids,
+        mapLocs,
+        addOnsList,
+        fasSaranaRes,
+        zonaRes,
+      ] = await Promise.all([
         fetchRooms(),
         fetchTours(),
         fetchFacilities(),
@@ -154,6 +185,8 @@ export default function App() {
         fetchHeroVideos<HeroVideoItem>(),
         fetchMapLocations<MapLocation>(),
         fetchAddOns(),
+        fetchFasilitasSarana(),
+        fetchZonaPrabayar(),
       ]);
 
       if (Array.isArray(r)) {
@@ -183,6 +216,14 @@ export default function App() {
       if (Array.isArray(heroVids)) setHeroVideosData(heroVids);
       if (Array.isArray(mapLocs)) setMapLocationsData(mapLocs);
       if (Array.isArray(addOnsList)) setAddOnsData(addOnsList);
+      if (fasSaranaRes) {
+        setFasilitasSaranaData(fasSaranaRes.items);
+        setFasilitasHoursData(fasSaranaRes.operatingHours);
+      }
+      if (zonaRes) {
+        setZonaPrabayarData(zonaRes.items);
+        setZonaRentalsData(zonaRes.rentalFacilities);
+      }
     } catch (err) {
       console.warn('Backend sync error:', err);
       setRoomsData((prev) => (prev.length > 0 ? prev : ROOM_SUITES));
@@ -375,12 +416,16 @@ export default function App() {
         {/* 3. Floating Reservation & Availability Bar — masuk 30px ke bawah video carousel */}
         <section
           id="cek-reservasi"
-          className="relative z-20 -mt-[30px] px-4 sm:px-8 scroll-mt-24"
+          className="relative z-30 -mt-[30px] px-4 sm:px-8 scroll-mt-24"
         >
-          <div className="max-w-7xl mx-auto w-full bg-[#14231e]/92 backdrop-blur-md border border-[#d4af37]/40 shadow-[0_18px_45px_rgba(0,0,0,0.45)] p-4 sm:p-6">
+          <div className="max-w-7xl mx-auto w-full bg-[#14231e]/92 backdrop-blur-md border border-[#d4af37]/40 shadow-[0_18px_45px_rgba(0,0,0,0.45)]">
             <BookingBar
               currency={currency}
               categories={categoriesData}
+              fasilitasItems={fasilitasSaranaData}
+              fasilitasHours={fasilitasHoursData}
+              zonaItems={zonaPrabayarData}
+              zonaRentals={zonaRentalsData}
               onSearch={handleSearchFromHero}
               onInstantReserve={handleOpenGeneralBooking}
             />

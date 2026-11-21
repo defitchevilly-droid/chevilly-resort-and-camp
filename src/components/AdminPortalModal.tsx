@@ -1,5 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { RoomSuite, TourExperience, Reservation, Currency, BookingAddOn, RoomCategoryItem, GuestReview } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  RoomSuite,
+  TourExperience,
+  Reservation,
+  Currency,
+  BookingAddOn,
+  RoomCategoryItem,
+  GuestReview,
+  FasilitasSaranaItem,
+  FasilitasOperatingHour,
+  ZonaPrabayarItem,
+  ZonaRentalFacility,
+} from '../types';
 import {
   X, Plus, Edit, Trash2, Check, RefreshCw, Eye, EyeOff, ShieldCheck,
   Building2, Compass, Sparkles, Phone, BookmarkCheck, ExternalLink,
@@ -22,9 +34,11 @@ import {
   fetchHeroVideos, saveHeroVideosToServer,
   fetchMapLocations, saveMapLocationsToServer,
   fetchVenues, saveVenuesToServer,
+  fetchFasilitasSarana, fetchZonaPrabayar,
   ResortInfoData, FacilitiesData,
   loginAdmin, changeAdminPassword, AdminUser, uploadImage, fetchLiveUsdRate
 } from '../services/api';
+import { AdminFasilitasTab, AdminZonaTab } from './AdminFasilitasZonaTab';
 import {
   MapLocation,
   MAP_LOCATIONS,
@@ -374,36 +388,16 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   currency,
   onDataChanged,
 }) => {
-  const [activeTab, setActiveTab] = useState<'rooms' | 'categories' | 'tours' | 'facilities' | 'addons' | 'reviews' | 'settings' | 'reservations' | 'map_locations' | 'hero_videos'>('rooms');
+  const [activeTab, setActiveTab] = useState<'rooms' | 'categories' | 'tours' | 'fasilitas_sarana' | 'zona_prabayar' | 'facilities' | 'addons' | 'reviews' | 'settings' | 'reservations' | 'map_locations' | 'hero_videos'>('rooms');
+  const [isUpdateDataMenuOpen, setIsUpdateDataMenuOpen] = useState(false);
+  const updateDataMenuRef = useRef<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Admin Authentication states
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('chevilly_admin_session');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.token) return true;
-      }
-    } catch {
-      // fallback
-    }
-    return false;
-  });
-
-  const [adminUser, setAdminUser] = useState<AdminUser | null>(() => {
-    try {
-      const saved = localStorage.getItem('chevilly_admin_session');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.admin) return parsed.admin;
-      }
-    } catch {
-      // fallback
-    }
-    return null;
-  });
+  // Admin Authentication states (signed Bearer token held strictly in React memory)
+  const [adminToken, setAdminToken] = useState<string>('');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
 
   // Login Form States
   const [loginUsername, setLoginUsername] = useState('admin');
@@ -426,6 +420,10 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   const [rooms, setRooms] = useState<RoomSuite[]>([]);
   const [tours, setTours] = useState<TourExperience[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [fasilitasSaranaItems, setFasilitasSaranaItems] = useState<FasilitasSaranaItem[]>([]);
+  const [fasilitasHours, setFasilitasHours] = useState<FasilitasOperatingHour[]>([]);
+  const [zonaPrabayarItems, setZonaPrabayarItems] = useState<ZonaPrabayarItem[]>([]);
+  const [zonaRentals, setZonaRentals] = useState<ZonaRentalFacility[]>([]);
 
   // Edit/Create Modal states
   const [editingRoom, setEditingRoom] = useState<Partial<RoomSuite> | null>(null);
@@ -805,6 +803,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
         heroVidsRes,
         mapLocsRes,
         venuesRes,
+        fasilitasSaranaRes,
+        zonaPrabayarRes,
       ] = await Promise.all([
         fetchResortInfo(),
         fetchFacilities(),
@@ -817,6 +817,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
         fetchHeroVideos<HeroVideoItem>(),
         fetchMapLocations<MapLocation>(),
         fetchVenues<VenueItem>(),
+        fetchFasilitasSarana(),
+        fetchZonaPrabayar(),
       ]);
       if (infoRes) setResortInfo(infoRes);
       if (facRes) setFacilities(facRes);
@@ -829,6 +831,14 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
       if (Array.isArray(heroVidsRes)) setHeroVideos(heroVidsRes);
       if (Array.isArray(mapLocsRes)) setMapLocations(mapLocsRes);
       if (Array.isArray(venuesRes)) setVenueItems(venuesRes);
+      if (fasilitasSaranaRes) {
+        setFasilitasSaranaItems(fasilitasSaranaRes.items);
+        setFasilitasHours(fasilitasSaranaRes.operatingHours);
+      }
+      if (zonaPrabayarRes) {
+        setZonaPrabayarItems(zonaPrabayarRes.items);
+        setZonaRentals(zonaPrabayarRes.rentalFacilities);
+      }
     } catch (err) {
       console.error('Error loading backend data:', err);
     } finally {
@@ -842,6 +852,24 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     }
   }, [isOpen, isAuthenticated]);
 
+  useEffect(() => {
+    if (!isUpdateDataMenuOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (updateDataMenuRef.current && !updateDataMenuRef.current.contains(e.target as Node)) {
+        setIsUpdateDataMenuOpen(false);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsUpdateDataMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [isUpdateDataMenuOpen]);
+
   const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
     setFeedback({ message, type });
     setTimeout(() => setFeedback(null), 3500);
@@ -854,12 +882,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     try {
       const res = await loginAdmin(loginUsername, loginPassword);
       if (res.success && res.token) {
-        const sessionData = {
-          token: res.token,
-          admin: res.admin,
-          loginTime: new Date().toISOString(),
-        };
-        localStorage.setItem('chevilly_admin_session', JSON.stringify(sessionData));
+        setAdminToken(res.token);
         setIsAuthenticated(true);
         setAdminUser(res.admin || null);
         showFeedback(res.message || 'Berhasil masuk ke Portal Admin');
@@ -875,11 +898,18 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   };
 
   const handleAdminLogout = () => {
-    localStorage.removeItem('chevilly_admin_session');
+    setAdminToken('');
     setIsAuthenticated(false);
     setAdminUser(null);
     setLoginPassword('');
     showFeedback('Anda telah berhasil keluar dari akun Admin');
+  };
+
+  const handleAdminSessionExpired = () => {
+    setAdminToken('');
+    setIsAuthenticated(false);
+    setAdminUser(null);
+    setLoginError('Sesi admin telah berakhir. Silakan login kembali untuk menyimpan perubahan.');
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -2210,62 +2240,114 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
           </div>
         </div>
 
-        {/* Tab Navigation Controls */}
-        <div className="px-5 sm:px-6 py-3.5 bg-[#f4f0e6] border-b border-[#ded7cb]">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {[
+        {/* Tab Navigation Controls — Dropdown "Update Data" */}
+        <div className="px-5 sm:px-6 py-3 bg-[#f4f0e6] border-b border-[#ded7cb]">
+          {(() => {
+            const adminMenuItems = [
               { id: 'rooms' as const, label: 'Rooms & Villas', count: rooms.length, icon: Building2 },
               { id: 'categories' as const, label: 'Kelola Kategori', count: categories.length, icon: Layers },
               { id: 'tours' as const, label: 'Explore Wisata', count: tours.length, icon: Compass },
+              { id: 'fasilitas_sarana' as const, label: 'Fasilitas & Sarana', count: fasilitasSaranaItems.length, icon: Sparkles },
+              { id: 'zona_prabayar' as const, label: 'Explore Zona', count: zonaPrabayarItems.length, icon: MapPin },
               { id: 'facilities' as const, label: 'Resto, Meeting & Wedding', count: venueItems.length, icon: UtensilsCrossed },
-              { id: 'addons' as const, label: 'Layanan Tambahan', count: addOns.length, icon: Sparkles },
+              { id: 'addons' as const, label: 'Layanan Tambahan', count: addOns.length, icon: Tag },
               { id: 'reviews' as const, label: 'Ulasan Tamu', count: reviews.length, icon: Star },
               { id: 'settings' as const, label: 'Kontak BDE & Resor', count: null, icon: Phone },
               { id: 'reservations' as const, label: 'Data Reservasi', count: reservations.length, icon: BookmarkCheck },
               { id: 'map_locations' as const, label: 'Peta Kawasan', count: mapLocations.length, icon: MapPin },
               { id: 'hero_videos' as const, label: 'Video Hero HD', count: heroVideos.length, icon: Video },
-            ].map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveTab(item.id)}
-                  className={`group relative px-3 py-2.5 border text-left transition-all duration-200 flex items-center justify-between gap-2 cursor-pointer ${
-                    isActive
-                      ? 'bg-[#182a24] border-[#182a24] text-[#f7f5ef] shadow-[0_6px_16px_rgba(24,42,36,0.18)]'
-                      : 'bg-white/85 hover:bg-white border-[#ded7cb] hover:border-[#c5a880] text-[#43554d] hover:text-[#182a24]'
-                  }`}
-                >
-                  {isActive && (
-                    <span className="absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-[#cfab60] via-[#fae7b3] to-[#cfab60]" />
-                  )}
-                  <span className="flex items-center gap-2 min-w-0">
-                    <Icon
-                      className={`w-3.5 h-3.5 shrink-0 transition-colors ${
-                        isActive ? 'text-[#d4af37]' : 'text-[#967d58] group-hover:text-[#182a24]'
+            ];
+            const currentMenu = adminMenuItems.find((item) => item.id === activeTab) || adminMenuItems[0];
+            const CurrentIcon = currentMenu.icon;
+
+            return (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div ref={updateDataMenuRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsUpdateDataMenuOpen((prev) => !prev)}
+                    aria-expanded={isUpdateDataMenuOpen}
+                    aria-haspopup="menu"
+                    className="inline-flex items-center gap-2.5 px-4 py-2.5 bg-[#182a24] hover:bg-[#233b33] text-[#f7f5ef] border border-[#182a24] text-xs font-semibold uppercase tracking-wider shadow-sm transition-all cursor-pointer"
+                  >
+                    <Layers className="w-4 h-4 text-[#d4af37] shrink-0" />
+                    <span>Update Data</span>
+                    <ChevronDown
+                      className={`w-4 h-4 text-[#eed492] transition-transform duration-200 ${
+                        isUpdateDataMenuOpen ? 'rotate-180' : ''
                       }`}
                     />
-                    <span className="text-[11px] font-semibold tracking-wide truncate">
-                      {item.label}
-                    </span>
-                  </span>
-                  {item.count !== null && (
-                    <span
-                      className={`shrink-0 px-1.5 py-0.5 text-[10px] font-mono leading-none border ${
-                        isActive
-                          ? 'bg-[#d4af37]/20 text-[#fae7b3] border-[#d4af37]/40'
-                          : 'bg-[#f4f0e6] text-[#6d7c74] border-[#e4ded2] group-hover:border-[#d4af37]/40'
-                      }`}
+                  </button>
+
+                  {isUpdateDataMenuOpen && (
+                    <div
+                      role="menu"
+                      className="absolute left-0 top-full mt-1.5 z-50 w-[min(92vw,480px)] bg-white border border-[#182a24]/30 shadow-[0_18px_40px_rgba(24,42,36,0.22)] p-2 animate-in fade-in slide-in-from-top-1 duration-150"
                     >
-                      {item.count}
+                      <div className="px-2.5 py-1.5 mb-1 border-b border-[#ece6da] flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-[#73837b]">
+                        <span>Pilih Modul Update Data</span>
+                        <span>{adminMenuItems.length} Modul</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                        {adminMenuItems.map((item) => {
+                          const Icon = item.icon;
+                          const isActive = activeTab === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                setActiveTab(item.id);
+                                setIsUpdateDataMenuOpen(false);
+                              }}
+                              className={`w-full px-3 py-2 text-left transition-all flex items-center justify-between gap-2 cursor-pointer border ${
+                                isActive
+                                  ? 'bg-[#182a24] border-[#182a24] text-[#f7f5ef]'
+                                  : 'bg-white hover:bg-[#f4f0e6] border-transparent hover:border-[#ded7cb] text-[#3b4e46] hover:text-[#182a24]'
+                              }`}
+                            >
+                              <span className="flex items-center gap-2 min-w-0">
+                                <Icon
+                                  className={`w-3.5 h-3.5 shrink-0 ${
+                                    isActive ? 'text-[#d4af37]' : 'text-[#967d58]'
+                                  }`}
+                                />
+                                <span className="text-xs font-semibold truncate">{item.label}</span>
+                              </span>
+                              {item.count !== null && (
+                                <span
+                                  className={`shrink-0 px-1.5 py-0.5 text-[10px] font-mono leading-none border ${
+                                    isActive
+                                      ? 'bg-[#d4af37]/20 text-[#fae7b3] border-[#d4af37]/40'
+                                      : 'bg-[#f4f0e6] text-[#6d7c74] border-[#e4ded2]'
+                                  }`}
+                                >
+                                  {item.count}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Active Module Indicator */}
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-[#ded7cb] text-xs text-[#182a24]">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-[#73837b]">Aktif:</span>
+                  <CurrentIcon className="w-3.5 h-3.5 text-[#967d58] shrink-0" />
+                  <span className="font-semibold">{currentMenu.label}</span>
+                  {currentMenu.count !== null && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-mono bg-[#f4f0e6] border border-[#e4ded2] text-[#52645c] leading-none">
+                      {currentMenu.count}
                     </span>
                   )}
-                </button>
-              );
-            })}
-          </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Main Tab Panels */}
@@ -4191,6 +4273,32 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                 </div>
               )}
             </div>
+          )}
+
+          {/* TAB: FASILITAS & SARANA (CRUD) */}
+          {activeTab === 'fasilitas_sarana' && (
+            <AdminFasilitasTab
+              items={fasilitasSaranaItems}
+              operatingHours={fasilitasHours}
+              adminToken={adminToken}
+              onRefresh={loadAllData}
+              onDataChanged={onDataChanged}
+              onFeedback={showFeedback}
+              onAuthExpired={handleAdminSessionExpired}
+            />
+          )}
+
+          {/* TAB: EXPLORE ZONA PRABAYAR (CRUD) */}
+          {activeTab === 'zona_prabayar' && (
+            <AdminZonaTab
+              items={zonaPrabayarItems}
+              rentalFacilities={zonaRentals}
+              adminToken={adminToken}
+              onRefresh={loadAllData}
+              onDataChanged={onDataChanged}
+              onFeedback={showFeedback}
+              onAuthExpired={handleAdminSessionExpired}
+            />
           )}
         </div>
 

@@ -621,7 +621,7 @@ export const WellnessAndDining: React.FC<WellnessAndDiningProps> = ({
         <span id="meeting" className="absolute -top-24" />
 
         {/* PETA KAWASAN SEDERHANA DENGAN ZOOM */}
-        <div className="relative bg-white border border-[#ded7cb] overflow-hidden">
+        <div className="relative -mx-6 -mt-6 sm:-mx-8 sm:-mt-8 bg-white border-b border-[#ded7cb] overflow-hidden">
           {/* Kontrol Zoom Mengambang Sederhana */}
           <div className="absolute top-3 right-3 z-10 flex items-center bg-white/95 backdrop-blur-sm border border-[#ded7cb] shadow-sm divide-x divide-[#ded7cb]">
             <button
@@ -693,7 +693,7 @@ export const WellnessAndDining: React.FC<WellnessAndDiningProps> = ({
                 src={PANORAMIC_MAP_SRC}
                 alt="Peta Ilustrasi Kawasan Chevilly Resort & Camp Titik 1 sampai 64"
                 draggable={false}
-                className="w-full h-auto max-h-[520px] object-contain mx-auto block p-3 sm:p-5"
+                className="w-full h-auto block"
               />
             </div>
           </div>
@@ -1325,7 +1325,7 @@ export const WellnessAndDining: React.FC<WellnessAndDiningProps> = ({
       {/* 6. FULLSCREEN SIMPLE ZOOMABLE AREA MAP MODAL */}
       {isAreaMapFullscreen && (
         <div
-          className="fixed inset-0 z-60 bg-black/90 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6"
+          className="fixed inset-0 z-60 w-screen h-[100dvh] bg-black/95 flex items-center justify-center"
           onClick={() => setIsAreaMapFullscreen(false)}
         >
           {/* Kontrol Zoom Mengambang */}
@@ -1402,7 +1402,7 @@ export const WellnessAndDining: React.FC<WellnessAndDiningProps> = ({
                 src={PANORAMIC_MAP_SRC}
                 alt="Peta Ilustrasi Kawasan Chevilly Layar Penuh"
                 draggable={false}
-                className="w-full h-full max-h-[88vh] object-contain p-4"
+                className="w-full h-full object-contain"
               />
             </div>
           </div>
